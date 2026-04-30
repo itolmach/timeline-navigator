@@ -10,6 +10,7 @@ import {
   type SafetyEvent,
 } from "@/lib/timeline-data";
 import { cn } from "@/lib/utils";
+import { Play } from "lucide-react";
 
 // ---------- viewport math --------------------------------------------------
 interface Viewport {
@@ -32,11 +33,20 @@ function clampViewport(v: Viewport): Viewport {
 function getTicks(vp: Viewport): { major: number[]; minor: number[]; fmt: (s: number) => string } {
   const span = vp.end - vp.start;
   let majorStep: number; let minorStep: number; let fmt: (s: number) => string;
-  if (span > 12 * 3600) { majorStep = 3600; minorStep = 900; fmt = (s) => formatClock(s); }
-  else if (span > 3 * 3600) { majorStep = 1800; minorStep = 300; fmt = (s) => formatClock(s); }
-  else if (span > 30 * 60) { majorStep = 600; minorStep = 60; fmt = (s) => formatClock(s); }
-  else if (span > 5 * 60) { majorStep = 60; minorStep = 10; fmt = (s) => formatClock(s, { showSeconds: true }); }
-  else { majorStep = 10; minorStep = 1; fmt = (s) => formatClock(s, { showSeconds: true }); }
+  
+  if (span > 12 * 3600) {
+    majorStep = 4 * 3600; minorStep = 3600; fmt = (s) => formatClock(s);
+  } else if (span > 4 * 3600) {
+    majorStep = 3600; minorStep = 900; fmt = (s) => formatClock(s);
+  } else if (span > 1 * 3600) {
+    majorStep = 15 * 60; minorStep = 300; fmt = (s) => formatClock(s);
+  } else if (span > 15 * 60) {
+    majorStep = 5 * 60; minorStep = 60; fmt = (s) => formatClock(s);
+  } else if (span > 3 * 60) {
+    majorStep = 60; minorStep = 10; fmt = (s) => formatClock(s, { showSeconds: true });
+  } else {
+    majorStep = 30; minorStep = 5; fmt = (s) => formatClock(s, { showSeconds: true });
+  }
   const major: number[] = []; const minor: number[] = [];
   const startMajor = Math.ceil(vp.start / majorStep) * majorStep;
   for (let t = startMajor; t <= vp.end; t += majorStep) major.push(t);
@@ -67,6 +77,8 @@ export interface ScrubberState {
   focusEvent: (e: SafetyEvent) => void;
   zoom: (factor: number) => void;
   fit: () => void;
+  jumpToNext: () => void;
+  jumpToPrev: () => void;
 }
 
 export function useScrubber(): ScrubberState {
@@ -116,39 +128,151 @@ export function useScrubber(): ScrubberState {
     setVpRaw(clampViewport({ start: e.t - span / 2, end: e.t + span / 2 }));
   }, []);
 
-  return { vp, setVp, playhead, setPlayhead, playing, setPlaying, speed, setSpeed, selected, focusEvent, zoom, fit };
+  const jumpToNext = useCallback(() => {
+    const next = safetyEvents.filter(e => e.t > playhead).sort((a, b) => a.t - b.t)[0];
+    if (next) focusEvent(next);
+  }, [playhead, focusEvent]);
+
+  const jumpToPrev = useCallback(() => {
+    const prev = safetyEvents.filter(e => e.t < playhead - 1).sort((a, b) => b.t - a.t)[0];
+    if (prev) focusEvent(prev);
+  }, [playhead, focusEvent]);
+
+  return { vp, setVp, playhead, setPlayhead, playing, setPlaying, speed, setSpeed, selected, focusEvent, zoom, fit, jumpToNext, jumpToPrev };
 }
 
 // ============================================================================
 // Playback toolbar (designed to overlay on video)
 // ============================================================================
 export function PlaybackToolbar({ s }: { s: ScrubberState }) {
+  // --- Live Data Calculations ---
+  const currentRiskSample = useMemo(() => {
+    const t = s.playhead;
+    const idx = Math.min(Math.floor(t / 60), riskSamples.length - 1);
+    return riskSamples[idx];
+  }, [s.playhead]);
+
+  const currentSegment = useMemo(() => {
+    return costSegments.find(seg => s.playhead >= seg.start && s.playhead < seg.end);
+  }, [s.playhead]);
+
+  const riskValue = currentRiskSample ? currentRiskSample.v * 5 : 0;
+  
+  const baselineByCode: Record<CostCode, number> = {
+    idle: 0.05,
+    moving: 0.35,
+    grading: 0.45,
+    loading: 0.6,
+    digging: 0.55,
+  };
+  const baseline = (baselineByCode[currentSegment?.code ?? "idle"] || 0) * 5;
+  const riskDiff = riskValue - baseline;
+
+  const activityDesc: Record<CostCode, string> = {
+    idle: "Engine on standby, operator awaiting instructions",
+    moving: "Asset in transit between work zones",
+    grading: "Surface refinement and leveling in progress",
+    loading: "Material transfer to haul trucks active",
+    digging: "Primary excavation and trenching",
+  };
+
+  const nextEvent = useMemo(() => {
+    return safetyEvents
+      .filter(e => e.t > s.playhead)
+      .sort((a, b) => a.t - b.t)[0];
+  }, [s.playhead]);
+
+  const minutesToEvent = nextEvent 
+    ? Math.floor((nextEvent.t - s.playhead) / 60) 
+    : null;
+
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <button
-        onClick={() => s.setPlaying((p) => !p)}
-        className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 font-mono text-xs font-semibold uppercase tracking-wider text-primary-foreground transition hover:bg-primary-glow glow-primary"
-      >
-        {s.playing ? "❚❚ Pause" : "▶ Play"}
-      </button>
-      <div className="flex items-center gap-1 rounded-md border border-border bg-surface-2/90 p-1 font-mono text-[11px] backdrop-blur">
-        {[1, 30, 60, 240, 600].map((sp) => (
-          <button
-            key={sp}
-            onClick={() => s.setSpeed(sp)}
-            className={cn(
-              "rounded px-2 py-1 transition",
-              s.speed === sp ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {sp}×
-          </button>
-        ))}
+    <div className="flex flex-wrap items-stretch gap-4">
+      {/* Play/Pause & Speed */}
+      <div className="flex flex-col gap-2">
+        <button
+          onClick={() => s.setPlaying((p) => !p)}
+          className="inline-flex h-full min-w-[140px] items-center justify-center gap-2 rounded-lg bg-primary px-6 font-bold uppercase tracking-widest text-primary-foreground transition-all hover:bg-primary-glow shadow-md hover:shadow-lg active:scale-95"
+        >
+          {s.playing ? (
+            <><svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Pause</>
+          ) : (
+            <><svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4"><path d="M8 5v14l11-7z"/></svg> Play</>
+          )}
+        </button>
+        <div className="flex items-center gap-1 rounded-lg border border-border bg-surface-1 p-1 text-[10px] font-bold">
+          {[1, 30, 60, 240, 600].map((sp) => (
+            <button
+              key={sp}
+              onClick={() => s.setSpeed(sp)}
+              className={cn(
+                "rounded-md px-2.5 py-1 transition",
+                s.speed === sp ? "bg-secondary text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {sp}×
+            </button>
+          ))}
+        </div>
       </div>
-      <div className="ml-auto rounded-md border border-border bg-background/70 px-3 py-1.5 font-mono backdrop-blur">
-        <div className="text-[9px] uppercase tracking-widest text-muted-foreground">Playhead</div>
-        <div className="text-base font-semibold tabular-nums text-primary-glow">
-          {formatClock(s.playhead, { showSeconds: true })}
+
+      {/* Analytics Dashboard */}
+      <div className="flex flex-1 flex-wrap gap-4 rounded-xl border border-border bg-surface-1 p-3 shadow-panel">
+        {/* Risk Metrics */}
+        <div className="flex min-w-[140px] flex-col border-r border-border pr-4">
+          <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">Live Risk Analysis</div>
+          <div className="flex items-baseline gap-3 mt-1">
+            <div className={cn(
+              "text-3xl font-black tabular-nums tracking-tighter leading-none",
+              riskValue > 3.5 ? "text-destructive" : riskValue > 2.5 ? "text-risk-med" : "text-primary"
+            )}>
+              {riskValue.toFixed(2)}
+            </div>
+            <div className={cn(
+              "text-[11px] font-bold tabular-nums",
+              riskDiff >= 0 ? "text-destructive" : "text-primary"
+            )}>
+              {riskDiff >= 0 ? "↑" : "↓"} {Math.abs(riskDiff).toFixed(2)}
+            </div>
+          </div>
+          <div className="mt-1 text-[9px] font-medium text-muted-foreground uppercase tracking-wider">
+            {riskDiff > 0.3 ? "Alert: Elevated Risk" : "Stable profile"}
+          </div>
+        </div>
+
+        {/* Current Activity */}
+        <div className="flex flex-1 min-w-[240px] flex-col px-2">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">Active Operational State</span>
+            {currentSegment && (
+              <span className="rounded-full bg-accent px-2 py-0.5 text-[9px] font-bold uppercase text-accent-foreground border border-primary/20">
+                {costCodeMeta[currentSegment.code].label}
+              </span>
+            )}
+          </div>
+          <div className="mt-2 line-clamp-1 text-[12px] font-semibold text-foreground">
+            {currentSegment ? activityDesc[currentSegment.code] : "Synchronizing asset telemetry..."}
+          </div>
+          <div className="mt-auto flex items-center gap-3 pt-2">
+            <div className="h-1.5 flex-1 rounded-full bg-surface-2 overflow-hidden border border-border/50">
+              <div 
+                className="h-full bg-primary transition-all duration-700 ease-out" 
+                style={{ width: `${(riskValue / 5) * 100}%` }} 
+              />
+            </div>
+            <span className="text-[10px] font-black tabular-nums text-muted-foreground"> LVL {Math.ceil(riskValue)}</span>
+          </div>
+        </div>
+
+        {/* Master Playhead */}
+        <div className="flex min-w-[150px] flex-col rounded-lg bg-surface-2 p-2.5 text-right border border-border/40">
+          <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">Master Timeline</div>
+          <div className="text-2xl font-black tabular-nums tracking-tight text-foreground mt-1">
+            {formatClock(s.playhead, { showSeconds: true })}
+          </div>
+          <div className="text-[9px] font-bold text-primary uppercase tracking-widest mt-0.5">
+            {nextEvent ? `T-MINUS ${minutesToEvent}m TO EVENT` : "NO UPCOMING ALERTS"}
+          </div>
         </div>
       </div>
     </div>
@@ -156,151 +280,252 @@ export function PlaybackToolbar({ s }: { s: ScrubberState }) {
 }
 
 // ============================================================================
+// ============================================================================
 // Tracks
 // ============================================================================
-function RiskTrack({ vp, height = 64 }: { vp: Viewport; height?: number }) {
+
+// ============================================================================
+// Integrated Activity Track (Risk + Cost Code Combined)
+// ============================================================================
+function IntegratedActivityTrack({ vp, height = 80 }: { vp: Viewport; height?: number }) {
+  const [hovered, setHovered] = useState<{ seg: CostSegment; idx: number } | null>(null);
+  
   const points = useMemo(
     () => riskSamples.filter((s) => s.t >= vp.start - 60 && s.t <= vp.end + 60),
     [vp],
   );
-  const path = useMemo(() => {
-    if (points.length < 2) return "";
-    const pts = points.map((p) => [tToPct(p.t, vp), (1 - p.v) * 100]);
+
+  const visibleSegments = useMemo(() => 
+    costSegments.map((s, i) => ({ s, i })).filter(({ s }) => s.end >= vp.start && s.start <= vp.end),
+    [vp]
+  );
+
+  // Generate the baseline path for the risk chart
+  const getRiskPath = useCallback((segmentStart: number, segmentEnd: number) => {
+    const segPoints = points.filter(p => p.t >= segmentStart - 60 && p.t <= segmentEnd + 60);
+    if (segPoints.length < 2) return "";
+    
+    // Create the area path
+    const pts = segPoints.map((p) => [tToPct(p.t, vp), (1 - p.v) * 100]);
     let d = `M ${pts[0][0]} 100 L ${pts[0][0]} ${pts[0][1]}`;
     for (let i = 1; i < pts.length; i++) d += ` L ${pts[i][0]} ${pts[i][1]}`;
     d += ` L ${pts[pts.length - 1][0]} 100 Z`;
     return d;
   }, [points, vp]);
-  const linePath = useMemo(() => {
-    if (points.length < 2) return "";
-    const pts = points.map((p) => [tToPct(p.t, vp), (1 - p.v) * 100]);
+
+  const getRiskLine = useCallback((segmentStart: number, segmentEnd: number) => {
+    const segPoints = points.filter(p => p.t >= segmentStart - 60 && p.t <= segmentEnd + 60);
+    if (segPoints.length < 2) return "";
+    const pts = segPoints.map((p) => [tToPct(p.t, vp), (1 - p.v) * 100]);
     return pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p[0]} ${p[1]}`).join(" ");
   }, [points, vp]);
 
   return (
-    <div className="relative w-full overflow-hidden rounded-md border border-border bg-surface-1" style={{ height }}>
-      <div className="absolute inset-0 timeline-grid opacity-40" />
+    <div className="relative w-full overflow-hidden rounded-lg border border-border bg-surface-1" style={{ height }}>
+      <div className="absolute inset-0 timeline-grid opacity-20" />
+      
+      {/* Grid Lines */}
       {[0.25, 0.5, 0.75].map((y) => (
-        <div key={y} className="absolute left-0 right-0 border-t border-border/40" style={{ top: `${(1 - y) * 100}%` }} />
+        <div key={y} className="absolute left-0 right-0 border-t border-border/20" style={{ top: `${(1 - y) * 100}%` }} />
       ))}
+
       <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="risk-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="hsl(var(--risk-critical))" stopOpacity="0.85" />
-            <stop offset="40%" stopColor="hsl(var(--risk-high))" stopOpacity="0.55" />
-            <stop offset="75%" stopColor="hsl(var(--risk-med))" stopOpacity="0.35" />
-            <stop offset="100%" stopColor="hsl(var(--risk-low))" stopOpacity="0.15" />
-          </linearGradient>
-        </defs>
-        <path d={path} fill="url(#risk-fill)" />
-        <path d={linePath} fill="none" stroke="hsl(var(--primary-glow))" strokeWidth="0.4" vectorEffect="non-scaling-stroke" />
+        {visibleSegments.map(({ s, i }) => {
+          const meta = costCodeMeta[s.code];
+          const path = getRiskPath(s.start, s.end);
+          const line = getRiskLine(s.start, s.end);
+          if (!path) return null;
+
+          return (
+            <g key={i}>
+              <path 
+                d={path} 
+                fill={`hsl(var(${meta.cssVar}) / 0.15)`}
+                className="transition-colors duration-300"
+              />
+              <path 
+                d={line} 
+                fill="none" 
+                stroke={`hsl(var(${meta.cssVar}))`} 
+                strokeWidth="1.2" 
+                vectorEffect="non-scaling-stroke" 
+                className="transition-colors duration-300"
+              />
+            </g>
+          );
+        })}
       </svg>
-      <div className="pointer-events-none absolute left-2 top-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Risk profile</div>
-      <div className="pointer-events-none absolute right-2 top-1.5 flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
-        <span className="inline-block h-2 w-2 rounded-sm bg-risk-low" /> low
-        <span className="inline-block h-2 w-2 rounded-sm bg-risk-med" /> med
-        <span className="inline-block h-2 w-2 rounded-sm bg-risk-high" /> high
-        <span className="inline-block h-2 w-2 rounded-sm bg-risk-critical" /> critical
+
+      {/* Activity Labels Overlay */}
+      <div className="absolute inset-0 pointer-events-none">
+        {visibleSegments.map(({ s, i }) => {
+          const left = Math.max(0, tToPct(s.start, vp));
+          const right = Math.min(100, tToPct(s.end, vp));
+          const width = right - left;
+          if (width < 5) return null;
+          const meta = costCodeMeta[s.code];
+          return (
+            <div 
+              key={i} 
+              className="absolute bottom-1 px-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60 border-l border-border/30 h-3 flex items-center"
+              style={{ left: `${left}%`, width: `${width}%` }}
+            >
+              {width > 8 && meta.label}
+            </div>
+          );
+        })}
       </div>
+
+      {/* Hit areas for tooltips */}
+      {visibleSegments.map(({ s, i }) => {
+        const left = Math.max(0, tToPct(s.start, vp));
+        const right = Math.min(100, tToPct(s.end, vp));
+        return (
+          <div
+            key={`hit-${i}`}
+            onMouseEnter={() => setHovered({ seg: s, idx: i })}
+            onMouseLeave={() => setHovered(null)}
+            className="absolute top-0 bottom-0 cursor-help"
+            style={{ left: `${left}%`, width: `${right - left}%` }}
+          />
+        );
+      })}
+
+      {hovered && (
+        <CostSegmentTooltip 
+          segment={hovered.seg}
+          before={costSegments[hovered.idx - 1]}
+          after={costSegments[hovered.idx + 1]}
+          position={{ left: `${tToPct((hovered.seg.start + hovered.seg.end) / 2, vp)}%` }}
+        />
+      )}
     </div>
   );
 }
 
-function CostCodeTrack({ vp, height = 28 }: { vp: Viewport; height?: number }) {
-  const visible = costSegments.filter((s) => s.end >= vp.start && s.start <= vp.end);
+// ============================================================================
+// Event Tooltip Component
+// ============================================================================
+function EventTooltip({ event, position }: { event: SafetyEvent; position: { left: string; top: number } }) {
+  const meta = eventTypeMeta[event.type];
+  
   return (
-    <div className="relative w-full overflow-hidden rounded-md border border-border bg-surface-1" style={{ height }}>
-      {visible.map((s, i) => {
-        const left = Math.max(0, tToPct(s.start, vp));
-        const right = Math.min(100, tToPct(s.end, vp));
-        const width = Math.max(0, right - left);
-        if (width <= 0) return null;
-        const meta = costCodeMeta[s.code];
-        const isIdle = s.code === "idle";
-        return (
-          <div
-            key={i}
-            className={cn(
-              "absolute top-0 bottom-0 flex items-center px-2 text-[10px] font-medium uppercase tracking-wide overflow-hidden",
-              isIdle ? "text-muted-foreground" : "text-background",
-            )}
-            style={{
-              left: `${left}%`,
-              width: `${width}%`,
-              background: isIdle
-                ? `repeating-linear-gradient(45deg, hsl(var(--cc-idle)) 0 6px, hsl(var(--surface-2)) 6px 12px)`
-                : `hsl(var(${meta.cssVar}))`,
-            }}
-            title={`${meta.label} • ${formatClock(s.start, { showSeconds: true })} → ${formatClock(s.end, { showSeconds: true })}`}
-          >
-            {width > 6 && <span className="truncate font-mono">{meta.label}</span>}
+    <div 
+      className="pointer-events-none absolute z-[100] -translate-x-1/2 overflow-hidden rounded-lg border border-border bg-surface-1 shadow-panel transition-all duration-300 animate-in fade-in zoom-in-95"
+      style={{ 
+        left: position.left, 
+        top: position.top - 140,
+        width: 220
+      }}
+    >
+      <div className="relative aspect-video w-full bg-surface-3">
+        {event.videoUrl ? (
+          <video 
+            src={event.videoUrl}
+            autoPlay 
+            muted 
+            loop 
+            playsInline
+            className="h-full w-full object-cover grayscale-[0.3] brightness-90"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-surface-3 text-[10px] text-muted-foreground uppercase font-bold tracking-widest">
+            No Preview
           </div>
-        );
-      })}
+        )}
+        <div className="absolute inset-0 flex items-center justify-center bg-black/5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/30 backdrop-blur-sm border border-white/20">
+            <Play className="h-3.5 w-3.5 fill-white text-white" />
+          </div>
+        </div>
+        <div className="absolute left-2 top-2 flex items-center gap-1.5 rounded bg-black/50 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-white">
+          <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" /> REC
+        </div>
+      </div>
+      <div className="p-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <span 
+            className="rounded-sm px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white"
+            style={{ background: `hsl(var(${meta.cssVar}))` }}
+          >
+            {meta.label}
+          </span>
+          <span className="font-mono text-[9px] font-bold text-primary">
+            {formatClock(event.t, { showSeconds: true })}
+          </span>
+        </div>
+        <div className="mt-1.5 text-[11px] font-semibold leading-tight text-foreground">
+          {event.label}
+        </div>
+        {event.durationSec && (
+          <div className="mt-2 flex items-center gap-1 font-mono text-[9px] text-muted-foreground uppercase tracking-widest">
+            Duration <span className="text-foreground font-bold">{event.durationSec}s</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 function EventsTrack({
-  vp, height = 44, onSelect, selectedId,
+  vp, height = 32, onSelect, selectedId,
 }: { vp: Viewport; height?: number; onSelect: (e: SafetyEvent) => void; selectedId?: string; }) {
+  const [hovered, setHovered] = useState<SafetyEvent | null>(null);
   const span = vp.end - vp.start;
-  const clusterWindow = span * 0.012;
-  const visible = safetyEvents.filter((e) => e.t >= vp.start && e.t <= vp.end).sort((a, b) => a.t - b.t);
-  const clusters: { items: SafetyEvent[]; t: number }[] = [];
-  for (const ev of visible) {
-    const last = clusters[clusters.length - 1];
-    if (last && ev.t - last.t < clusterWindow) {
-      last.items.push(ev);
-      last.t = (last.items.reduce((a, b) => a + b.t, 0)) / last.items.length;
-    } else {
-      clusters.push({ items: [ev], t: ev.t });
-    }
-  }
+  const visible = safetyEvents.filter((e) => e.t >= vp.start - 300 && e.t <= vp.end + 300).sort((a, b) => a.t - b.t);
+  
   return (
-    <div className="relative w-full overflow-hidden rounded-md border border-border bg-surface-1" style={{ height }}>
-      <div className="absolute inset-0 timeline-grid opacity-30" />
-      <div className="pointer-events-none absolute left-2 top-1 z-10 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-        Safety events ({visible.length})
-      </div>
-      <div className="absolute left-0 right-0 bottom-2 border-t border-border-strong" />
-      {clusters.map((c, idx) => {
-        const left = tToPct(c.t, vp);
-        const isCluster = c.items.length > 1;
-        const top = c.items.find((i) => i.severity === 3) ? 14 : 22;
-        const dominant = c.items.reduce((a, b) => (b.severity > a.severity ? b : a));
-        const meta = eventTypeMeta[dominant.type];
-        const isSelected = c.items.some((i) => i.id === selectedId);
+    <div className="relative w-full overflow-visible rounded-lg border border-border bg-surface-1/50" style={{ height }}>
+      <div className="absolute inset-0 timeline-grid opacity-10" />
+      
+      {visible.map((e) => {
+        const left = tToPct(e.t, vp);
+        // Calculate width: duration or min 5px equivalent in pct
+        const pxPerSec = 1 / (span / 100); // 1% of timeline in seconds = span/100. Px per % depends on container.
+        // Actually, let's just use min-width in pixels via CSS.
+        const widthPct = e.durationSec ? (e.durationSec / span) * 100 : 0;
+        const meta = eventTypeMeta[e.type];
+        const isSelected = e.id === selectedId;
+        
+        if (left > 100 || left + widthPct < 0) return null;
+
         return (
           <button
-            key={idx}
-            onClick={(e) => { e.stopPropagation(); onSelect(c.items[0]); }}
+            key={e.id}
+            onClick={(evt) => { evt.stopPropagation(); onSelect(e); }}
+            onMouseEnter={() => setHovered(e)}
+            onMouseLeave={() => setHovered(null)}
             className={cn(
-              "group absolute -translate-x-1/2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary",
-              "transition-transform duration-200",
-              isSelected && "z-20 scale-110",
+              "absolute top-1 bottom-1 rounded-sm border-l-2 transition-all group flex flex-col justify-center overflow-hidden",
+              isSelected ? "z-20 ring-2 ring-primary ring-offset-1 ring-offset-background" : "z-10"
             )}
-            style={{ left: `${left}%`, top }}
-            title={isCluster ? `${c.items.length} events` : c.items[0].label}
+            style={{ 
+              left: `${left}%`, 
+              width: `calc(${widthPct}% + 4px)`, // +4px for min visible width
+              minWidth: "6px",
+              background: `hsl(var(${meta.cssVar}) / 0.1)`,
+              borderLeftColor: `hsl(var(${meta.cssVar}))`
+            }}
           >
-            <div className="mx-auto w-px" style={{ height: height - top - 8, background: `hsl(var(${meta.cssVar}))`, opacity: 0.6 }} />
-            <div
-              className={cn(
-                "absolute left-1/2 -translate-x-1/2 -top-0.5 flex items-center justify-center rounded-full border-2 border-background font-mono text-[9px] font-bold text-background shadow-md",
-                "group-hover:scale-125 transition-transform",
-              )}
-              style={{
-                width: isCluster ? 18 : dominant.severity === 3 ? 12 : 10,
-                height: isCluster ? 18 : dominant.severity === 3 ? 12 : 10,
-                background: `hsl(var(${meta.cssVar}))`,
-                boxShadow: dominant.severity === 3 ? `0 0 10px hsl(var(${meta.cssVar}) / 0.7)` : undefined,
-              }}
-            >
-              {isCluster && c.items.length}
-            </div>
+            <div 
+              className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" 
+              style={{ background: `hsl(var(${meta.cssVar}) / 0.15)` }} 
+            />
+            {widthPct > 5 && (
+              <span className="px-1 text-[8px] font-bold uppercase truncate text-foreground/70 pointer-events-none">
+                {meta.label}
+              </span>
+            )}
           </button>
         );
       })}
+
+      {hovered && (
+        <EventTooltip 
+          event={hovered} 
+          position={{ left: `${tToPct(hovered.t, vp)}%`, top: 0 }} 
+        />
+      )}
     </div>
   );
 }
@@ -449,102 +674,115 @@ function Minimap({
 // ============================================================================
 function CompactTrack({
   vp, onSelect, selectedId,
-}: { vp: Viewport; onSelect: (e: SafetyEvent) => void; selectedId?: string }) {
+}: { vp: Viewport; onSelect: (e: SafetyEvent) => void; selectedId?: string; }) {
+  const [hovered, setHovered] = useState<SafetyEvent | CostSegment | null>(null);
   const { major, minor, fmt } = getTicks(vp);
+  const span = vp.end - vp.start;
+  
+  const visibleEvents = safetyEvents.filter((e) => e.t >= vp.start - 300 && e.t <= vp.end + 300);
+  const visibleSegments = costSegments.filter((seg) => seg.end >= vp.start && seg.start <= vp.end);
+  const points = useMemo(
+    () => riskSamples.filter((s) => s.t >= vp.start - 60 && s.t <= vp.end + 60),
+    [vp],
+  );
 
-  // monochrome risk silhouette (height = risk)
-  const riskPath = useMemo(() => {
-    const points = riskSamples.filter((s) => s.t >= vp.start - 60 && s.t <= vp.end + 60);
-    if (points.length < 2) return "";
-    const pts = points.map((p) => [tToPct(p.t, vp), (1 - p.v) * 100]);
+  const getRiskPath = useCallback((segmentStart: number, segmentEnd: number) => {
+    const segPoints = points.filter(p => p.t >= segmentStart - 60 && p.t <= segmentEnd + 60);
+    if (segPoints.length < 2) return "";
+    const pts = segPoints.map((p) => [tToPct(p.t, vp), (1 - p.v) * 100]);
     let d = `M ${pts[0][0]} 100 L ${pts[0][0]} ${pts[0][1]}`;
     for (let i = 1; i < pts.length; i++) d += ` L ${pts[i][0]} ${pts[i][1]}`;
     d += ` L ${pts[pts.length - 1][0]} 100 Z`;
     return d;
-  }, [vp]);
+  }, [points, vp]);
 
-  const visibleEvents = safetyEvents.filter((e) => e.t >= vp.start && e.t <= vp.end);
-  const visibleSegments = costSegments.filter((s) => s.end >= vp.start && s.start <= vp.end);
+  const getRiskLine = useCallback((segmentStart: number, segmentEnd: number) => {
+    const segPoints = points.filter(p => p.t >= segmentStart - 60 && p.t <= segmentEnd + 60);
+    if (segPoints.length < 2) return "";
+    const pts = segPoints.map((p) => [tToPct(p.t, vp), (1 - p.v) * 100]);
+    return pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p[0]} ${p[1]}`).join(" ");
+  }, [points, vp]);
 
   return (
-    <div className="relative w-full select-none">
-      {/* Risk silhouette — monochrome, height encodes risk */}
-      <div className="relative h-6 w-full overflow-hidden rounded-t-md border border-b-0 border-border bg-surface-1">
-        <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-          <path d={riskPath} fill="hsl(var(--foreground) / 0.55)" />
-        </svg>
-        <div className="pointer-events-none absolute left-1.5 top-0.5 font-mono text-[9px] uppercase tracking-widest text-muted-foreground/80">
-          Risk
-        </div>
-      </div>
-
-      {/* Time bar with embedded cost strip + event pins */}
-      <div className="relative h-9 w-full overflow-hidden rounded-b-md border border-border bg-surface-2">
-        {/* tick marks */}
-        {minor.map((t) => (
-          <div key={`mi-${t}`} className="absolute top-0 w-px bg-border" style={{ left: `${tToPct(t, vp)}%`, height: 5 }} />
-        ))}
-        {major.map((t) => (
-          <div key={`ma-${t}`} className="absolute top-0" style={{ left: `${tToPct(t, vp)}%` }}>
-            <div className="h-2.5 w-px bg-border-strong" />
-            <div className="absolute left-1 top-0.5 whitespace-nowrap font-mono text-[9px] tabular-nums text-muted-foreground">
-              {fmt(t)}
-            </div>
-          </div>
-        ))}
-
-        {/* embedded event pins */}
+    <div className="flex flex-col gap-1 py-0.5">
+      {/* Event Track (Rects) */}
+      <div className="relative h-4 w-full overflow-visible rounded-t-lg border border-border bg-surface-1/40">
         {visibleEvents.map((e) => {
+          const left = tToPct(e.t, vp);
+          const widthPct = e.durationSec ? (e.durationSec / span) * 100 : 0;
           const meta = eventTypeMeta[e.type];
           const isSelected = e.id === selectedId;
+          if (left > 100 || left + widthPct < 0) return null;
           return (
             <button
               key={e.id}
-              onClick={(ev) => { ev.stopPropagation(); onSelect(e); }}
+              onClick={(evt) => { evt.stopPropagation(); onSelect(e); }}
+              onMouseEnter={() => setHovered(e)}
+              onMouseLeave={() => setHovered(null)}
               className={cn(
-                "absolute -translate-x-1/2 cursor-pointer outline-none",
-                "transition-transform hover:scale-125",
-                isSelected && "z-20 scale-125",
+                "absolute top-0.5 bottom-0.5 rounded-sm border-l-[1.5px] transition-all",
+                isSelected ? "z-20 ring-1 ring-primary" : "z-10"
               )}
-              style={{ left: `${tToPct(e.t, vp)}%`, top: 14 }}
-              title={e.label}
-            >
-              <div
-                className="rounded-full border border-background shadow-sm"
-                style={{
-                  width: e.severity === 3 ? 9 : 7,
-                  height: e.severity === 3 ? 9 : 7,
-                  background: `hsl(var(${meta.cssVar}))`,
-                  boxShadow: e.severity === 3 ? `0 0 6px hsl(var(${meta.cssVar}) / 0.8)` : undefined,
-                }}
-              />
-            </button>
+              style={{ 
+                left: `${left}%`, 
+                width: `calc(${widthPct}% + 3px)`,
+                minWidth: "4px",
+                background: `hsl(var(${meta.cssVar}) / 0.15)`,
+                borderLeftColor: `hsl(var(${meta.cssVar}))`
+              }}
+            />
           );
         })}
+      </div>
 
-        {/* 1px cost code strip embedded at the very bottom */}
-        <div className="absolute inset-x-0 bottom-0 h-px">
-          {visibleSegments.map((seg, i) => {
-            const left = Math.max(0, tToPct(seg.start, vp));
-            const right = Math.min(100, tToPct(seg.end, vp));
-            const width = Math.max(0, right - left);
-            if (width <= 0) return null;
-            const meta = costCodeMeta[seg.code];
+      {/* Integrated Risk/Activity Bar */}
+      <div className="relative h-10 w-full overflow-hidden rounded-b-lg border border-border bg-surface-1">
+        <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+          {visibleSegments.map((s, i) => {
+            const meta = costCodeMeta[s.code];
+            const path = getRiskPath(s.start, s.end);
+            const line = getRiskLine(s.start, s.end);
+            if (!path) return null;
             return (
-              <div
-                key={i}
-                className="absolute top-0 bottom-0"
-                style={{
-                  left: `${left}%`,
-                  width: `${width}%`,
-                  background: seg.code === "idle" ? "hsl(var(--cc-idle))" : `hsl(var(${meta.cssVar}))`,
-                }}
-                title={`${meta.label} • ${formatClock(seg.start)} → ${formatClock(seg.end)}`}
-              />
+              <g key={i}>
+                <path d={path} fill={`hsl(var(${meta.cssVar}) / 0.15)`} />
+                <path d={line} fill="none" stroke={`hsl(var(${meta.cssVar}))`} strokeWidth="1" vectorEffect="non-scaling-stroke" />
+              </g>
             );
           })}
-        </div>
+        </svg>
+
+        {/* Hit areas for tooltips */}
+        {visibleSegments.map((s, i) => {
+          const left = Math.max(0, tToPct(s.start, vp));
+          const right = Math.min(100, tToPct(s.end, vp));
+          return (
+            <div
+              key={`hit-${i}`}
+              onMouseEnter={() => setHovered(s)}
+              onMouseLeave={() => setHovered(null)}
+              className="absolute top-0 bottom-0 cursor-help"
+              style={{ left: `${left}%`, width: `${right - left}%` }}
+            />
+          );
+        })}
       </div>
+
+      {/* Shared Tooltips */}
+      {hovered && 'type' in hovered && (
+        <EventTooltip 
+          event={hovered as SafetyEvent} 
+          position={{ left: `${tToPct((hovered as SafetyEvent).t, vp)}%`, top: 0 }} 
+        />
+      )}
+      {hovered && !('type' in hovered) && (
+        <CostSegmentTooltip 
+          segment={hovered as CostSegment}
+          before={costSegments[costSegments.indexOf(hovered as CostSegment) - 1]}
+          after={costSegments[costSegments.indexOf(hovered as CostSegment) + 1]}
+          position={{ left: `${tToPct(((hovered as CostSegment).start + (hovered as CostSegment).end) / 2, vp)}%` }}
+        />
+      )}
     </div>
   );
 }
@@ -564,11 +802,22 @@ export function ScrubberTimeline({ s, compact = false }: { s: ScrubberState; com
       const x = (e.clientX - rect.left) / rect.width;
       const span = s.vp.end - s.vp.start;
       const focus = s.vp.start + x * span;
+
+      // Priority 1: Horizontal scroll (deltaX)
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+        const pan = (e.deltaX / rect.width) * span;
+        s.setVp({ start: s.vp.start + pan, end: s.vp.end + pan });
+        return;
+      }
+
+      // Priority 2: Shift + Vertical scroll (standard pan shortcut)
       if (e.shiftKey) {
         const pan = (e.deltaY / rect.width) * span;
         s.setVp({ start: s.vp.start + pan, end: s.vp.end + pan });
         return;
       }
+
+      // Priority 3: Vertical scroll (zoom)
       const factor = Math.exp(e.deltaY * 0.0015);
       const newSpan = Math.max(MIN_SPAN, Math.min(MAX_SPAN, span * factor));
       const newStart = focus - (focus - s.vp.start) * (newSpan / span);
@@ -611,9 +860,10 @@ export function ScrubberTimeline({ s, compact = false }: { s: ScrubberState; com
         ) : (
           <>
             <Ruler vp={s.vp} />
-            <CostCodeTrack vp={s.vp} />
-            <RiskTrack vp={s.vp} />
-            <EventsTrack vp={s.vp} onSelect={s.focusEvent} selectedId={s.selected?.id} />
+            <div className="space-y-2 py-1">
+              <EventsTrack vp={s.vp} onSelect={s.focusEvent} selectedId={s.selected?.id} />
+              <IntegratedActivityTrack vp={s.vp} />
+            </div>
           </>
         )}
 
@@ -641,7 +891,7 @@ export function ScrubberTimeline({ s, compact = false }: { s: ScrubberState; com
 
       {!compact && (
         <div className="mt-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-          Scroll = zoom · Shift+Scroll = pan · Drag minimap window · Click to seek
+          Scroll = zoom · Shift+Scroll / Horiz. Scroll = pan · Drag minimap window · Click to seek
         </div>
       )}
     </div>

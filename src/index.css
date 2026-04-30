@@ -2,75 +2,78 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Site Ops Video Scrubber — control-room design system. All colors HSL. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/* Site Ops Video Scrubber — Figma-inspired Industrial Light Mode */
 
 @layer base {
   :root {
     /* Surfaces */
-    --background: 222 28% 7%;
-    --foreground: 210 30% 96%;
+    --background: 210 20% 98%;
+    --foreground: 222 47% 11%;
 
-    --surface-1: 222 26% 10%;
-    --surface-2: 220 22% 13%;
-    --surface-3: 220 20% 17%;
+    --surface-1: 0 0% 100%;
+    --surface-2: 210 20% 96%;
+    --surface-3: 210 20% 92%;
 
-    --card: 222 26% 10%;
-    --card-foreground: 210 30% 96%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
 
-    --popover: 222 26% 10%;
-    --popover-foreground: 210 30% 96%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
 
-    /* Brand — electric cyan */
-    --primary: 188 95% 55%;
-    --primary-foreground: 222 40% 8%;
-    --primary-glow: 188 100% 70%;
+    /* Brand — Professional Green (from Figma) */
+    --primary: 162 100% 35%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 162 100% 42%;
 
-    --secondary: 220 20% 17%;
-    --secondary-foreground: 210 30% 96%;
+    --secondary: 210 20% 96%;
+    --secondary-foreground: 222 47% 11%;
 
-    --muted: 220 18% 14%;
-    --muted-foreground: 215 16% 60%;
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 16% 47%;
 
-    --accent: 188 80% 22%;
-    --accent-foreground: 188 100% 85%;
+    --accent: 162 100% 95%;
+    --accent-foreground: 162 100% 25%;
 
-    --destructive: 350 85% 58%;
-    --destructive-foreground: 210 30% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 220 18% 18%;
-    --border-strong: 220 18% 26%;
-    --input: 220 18% 18%;
-    --ring: 188 95% 55%;
+    --border: 214 32% 91%;
+    --border-strong: 214 32% 85%;
+    --input: 214 32% 91%;
+    --ring: 162 100% 35%;
 
-    --radius: 0.625rem;
+    --radius: 0.75rem;
 
-    /* Risk gradient stops (hills/valleys) */
-    --risk-low: 152 70% 45%;
-    --risk-med: 42 95% 58%;
-    --risk-high: 14 90% 58%;
-    --risk-critical: 350 90% 60%;
+    /* Risk gradient stops */
+    --risk-low: 162 82% 40%;
+    --risk-med: 42 100% 62%;
+    --risk-high: 24 95% 64%;
+    --risk-critical: 0 84% 60%;
 
-    /* Cost codes */
-    --cc-grading: 200 90% 58%;
-    --cc-digging: 280 70% 65%;
-    --cc-moving: 160 70% 50%;
-    --cc-loading: 38 95% 58%;
-    --cc-idle: 220 12% 28%;
+    /* Cost codes — Rebalanced for light mode */
+    --cc-grading: 199 89% 48%;
+    --cc-digging: 262 83% 58%;
+    --cc-moving: 162 100% 35%;
+    --cc-loading: 38 92% 50%;
+    --cc-idle: 215 16% 47%;
 
     /* Safety event types */
-    --evt-proximity: 350 90% 62%;   /* human near machinery — critical */
-    --evt-misuse: 28 95% 58%;       /* operator misuse */
-    --evt-speed: 50 95% 58%;        /* overspeed */
-    --evt-zone: 280 75% 68%;        /* zone breach */
-    --evt-ppe: 188 90% 55%;         /* PPE violation */
+    --evt-proximity: 0 84% 60%;
+    --evt-misuse: 24 95% 64%;
+    --evt-speed: 42 100% 62%;
+    --evt-zone: 262 83% 58%;
+    --evt-ppe: 199 89% 48%;
 
     /* Effects */
-    --shadow-glow: 0 0 24px hsl(var(--primary) / 0.35);
-    --shadow-panel: 0 8px 32px -12px hsl(220 50% 2% / 0.6);
-    --gradient-risk: linear-gradient(180deg, hsl(var(--risk-critical) / 0.85), hsl(var(--risk-med) / 0.55) 55%, hsl(var(--risk-low) / 0.35));
-    --gradient-surface: linear-gradient(180deg, hsl(var(--surface-2)), hsl(var(--surface-1)));
-
-    --transition-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-panel: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    --shadow-glow: 0 0 15px hsl(var(--primary) / 0.25);
+    
+    --transition-smooth: cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 
@@ -78,9 +81,10 @@
   * { @apply border-border; }
   body {
     @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
     font-feature-settings: "ss01", "cv11";
   }
-  .font-mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace; }
+  .font-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 }
 
 @layer utilities {
@@ -91,13 +95,19 @@
   }
   .scanline {
     background: repeating-linear-gradient(
-      90deg,
+      0deg,
       transparent 0,
-      transparent 3px,
-      hsl(var(--primary) / 0.04) 3px,
-      hsl(var(--primary) / 0.04) 4px
+      transparent 2px,
+      hsl(var(--foreground) / 0.02) 2px,
+      hsl(var(--foreground) / 0.02) 4px
     );
   }
   .glow-primary { box-shadow: var(--shadow-glow); }
-  .panel { background: var(--gradient-surface); box-shadow: var(--shadow-panel); }
+  .panel { 
+    @apply bg-surface-1 border border-border shadow-md rounded-xl; 
+    transition: transform 0.2s var(--transition-smooth), shadow 0.2s var(--transition-smooth);
+  }
+  .panel:hover {
+    @apply shadow-lg;
+  }
 }

@@ -20,6 +20,7 @@ export interface SafetyEvent {
   severity: 1 | 2 | 3; // 3 = critical
   label: string;
   durationSec?: number;
+  videoUrl?: string;
 }
 
 export interface RiskSample {
@@ -92,27 +93,29 @@ export const riskSamples: RiskSample[] = (() => {
 })();
 
 // ---- Safety events ---------------------------------------------------------
+const CLIPS = Array.from({ length: 14 }).map((_, i) => `/events/clip_${i.toString().padStart(3, "0")}.mp4`);
+
 export const safetyEvents: SafetyEvent[] = [
-  { id: "e1", t: 6.6 * 3600, type: "ppe", severity: 1, label: "PPE check missed at gate" },
-  { id: "e2", t: 7.1 * 3600, type: "zone", severity: 2, label: "Excavator entered restricted zone" },
-  { id: "e3", t: 7.45 * 3600, type: "proximity", severity: 3, label: "Worker within 2m of swinging boom" },
-  { id: "e4", t: 7.46 * 3600, type: "proximity", severity: 3, label: "Second worker enters swing radius" },
-  { id: "e5", t: 8.9 * 3600, type: "speed", severity: 2, label: "Loader overspeed on haul road" },
-  { id: "e6", t: 9.2 * 3600, type: "misuse", severity: 2, label: "Bucket used to push debris" },
-  { id: "e7", t: 9.85 * 3600, type: "proximity", severity: 3, label: "Spotter blind-side approach" },
-  { id: "e8", t: 10.4 * 3600, type: "ppe", severity: 1, label: "Hi-vis removed in active area" },
-  { id: "e9", t: 11.1 * 3600, type: "speed", severity: 1, label: "Reverse speed exceeded" },
-  { id: "e10", t: 13.4 * 3600, type: "misuse", severity: 3, label: "Lifting load over personnel" },
-  { id: "e11", t: 13.55 * 3600, type: "proximity", severity: 2, label: "Worker close to tracks" },
-  { id: "e12", t: 14.2 * 3600, type: "zone", severity: 1, label: "Stockpile zone breach" },
-  { id: "e13", t: 15.8 * 3600, type: "speed", severity: 2, label: "Travel speed on grade" },
-  { id: "e14", t: 16.3 * 3600, type: "misuse", severity: 2, label: "Improper bucket angle" },
-  { id: "e15", t: 17.6 * 3600, type: "proximity", severity: 3, label: "Pedestrian behind loader" },
-  { id: "e16", t: 18.1 * 3600, type: "ppe", severity: 1, label: "Hard hat off in cab exit" },
-  { id: "e17", t: 19.4 * 3600, type: "zone", severity: 2, label: "Trench edge proximity" },
-  { id: "e18", t: 19.9 * 3600, type: "proximity", severity: 3, label: "Two workers in swing radius" },
-  { id: "e19", t: 20.3 * 3600, type: "misuse", severity: 2, label: "Counterweight contact risk" },
-  { id: "e20", t: 20.7 * 3600, type: "speed", severity: 1, label: "Tram speed near exit" },
+  { id: "e1", t: 6.6 * 3600, type: "ppe", severity: 1, label: "PPE check missed at gate", durationSec: 15, videoUrl: CLIPS[0] },
+  { id: "e2", t: 7.1 * 3600, type: "zone", severity: 2, label: "Excavator entered restricted zone", durationSec: 45, videoUrl: CLIPS[1] },
+  { id: "e3", t: 7.45 * 3600, type: "proximity", severity: 3, label: "Worker within 2m of swinging boom", durationSec: 12, videoUrl: CLIPS[2] },
+  { id: "e4", t: 7.46 * 3600, type: "proximity", severity: 3, label: "Second worker enters swing radius", durationSec: 8, videoUrl: CLIPS[3] },
+  { id: "e5", t: 8.9 * 3600, type: "speed", severity: 2, label: "Loader overspeed on haul road", durationSec: 25, videoUrl: CLIPS[4] },
+  { id: "e6", t: 9.2 * 3600, type: "misuse", severity: 2, label: "Bucket used to push debris", durationSec: 10, videoUrl: CLIPS[5] },
+  { id: "e7", t: 9.85 * 3600, type: "proximity", severity: 3, label: "Spotter blind-side approach", durationSec: 18, videoUrl: CLIPS[6] },
+  { id: "e8", t: 10.4 * 3600, type: "ppe", severity: 1, label: "Hi-vis removed in active area", durationSec: 60, videoUrl: CLIPS[7] },
+  { id: "e9", t: 11.1 * 3600, type: "speed", severity: 1, label: "Reverse speed exceeded", durationSec: 5, videoUrl: CLIPS[8] },
+  { id: "e10", t: 13.4 * 3600, type: "misuse", severity: 3, label: "Lifting load over personnel", durationSec: 35, videoUrl: CLIPS[9] },
+  { id: "e11", t: 13.55 * 3600, type: "proximity", severity: 2, label: "Worker close to tracks", durationSec: 22, videoUrl: CLIPS[10] },
+  { id: "e12", t: 14.2 * 3600, type: "zone", severity: 1, label: "Stockpile zone breach", durationSec: 90, videoUrl: CLIPS[11] },
+  { id: "e13", t: 15.8 * 3600, type: "speed", severity: 2, label: "Travel speed on grade", durationSec: 14, videoUrl: CLIPS[12] },
+  { id: "e14", t: 16.3 * 3600, type: "misuse", severity: 2, label: "Improper bucket angle", durationSec: 11, videoUrl: CLIPS[13] },
+  { id: "e15", t: 17.6 * 3600, type: "proximity", severity: 3, label: "Pedestrian behind loader", durationSec: 7, videoUrl: CLIPS[0] },
+  { id: "e16", t: 18.1 * 3600, type: "ppe", severity: 1, label: "Hard hat off in cab exit", durationSec: 5, videoUrl: CLIPS[1] },
+  { id: "e17", t: 19.4 * 3600, type: "zone", severity: 2, label: "Trench edge proximity", durationSec: 40, videoUrl: CLIPS[2] },
+  { id: "e18", t: 19.9 * 3600, type: "proximity", severity: 3, label: "Two workers in swing radius", durationSec: 16, videoUrl: CLIPS[3] },
+  { id: "e19", t: 20.3 * 3600, type: "misuse", severity: 2, label: "Counterweight contact risk", durationSec: 9, videoUrl: CLIPS[4] },
+  { id: "e20", t: 20.7 * 3600, type: "speed", severity: 1, label: "Tram speed near exit", durationSec: 12, videoUrl: CLIPS[5] },
   // Dense burst to demo zoom clustering (around 7:27 to 7:29)
   ...Array.from({ length: 8 }).map((_, i) => ({
     id: `eb${i}`,
@@ -120,6 +123,8 @@ export const safetyEvents: SafetyEvent[] = [
     type: (["proximity", "ppe", "zone", "misuse"] as EventType[])[i % 4],
     severity: ((i % 3) + 1) as 1 | 2 | 3,
     label: `Burst event #${i + 1}`,
+    durationSec: 10 + (i * 3),
+    videoUrl: CLIPS[(i + 6) % 14]
   })),
 ];
 
