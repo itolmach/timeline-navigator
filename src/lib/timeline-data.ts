@@ -144,6 +144,72 @@ export const costCodeMeta: Record<CostCode, { label: string; cssVar: string }> =
   idle: { label: "Idle", cssVar: "--cc-idle" },
 };
 
+export interface ProductionMetric {
+  label: string;
+  value: string;
+  trend?: string;
+}
+
+export interface CheckIn {
+  id: string;
+  type: "morning" | "midday" | "evening";
+  t: number; // timestamp in seconds
+  title: string;
+  summary: string;
+  risk: "Low" | "Medium" | "High";
+  keywords: string[];
+  metrics: ProductionMetric[];
+  eventIds: string[];
+}
+
+export const checkIns: CheckIn[] = [
+  {
+    id: "c1",
+    type: "morning",
+    t: 8.25 * 3600,
+    title: "Morning Startup Check-in",
+    summary: "Morning shift startup concluded with all systems nominal. Initial excavation in Zone A proceeding according to plan. All operators reported for safety briefing. No critical incidents during mobilization.",
+    risk: "Low",
+    keywords: ["startup", "briefing", "mobilization"],
+    metrics: [
+      { label: "Hours Operated", value: "2.5h" },
+      { label: "Efficiency", value: "94%" },
+      { label: "Idle Variance", value: "-5%" }
+    ],
+    eventIds: ["e1", "e2", "e3", "e4"]
+  },
+  {
+    id: "c2",
+    type: "midday",
+    t: 12.5 * 3600,
+    title: "Midday Operational Update",
+    summary: "Midday operations showed increased complexity with two proximity alerts triggered. Personnel approached active equipment zones during material transfer. Idle time increased slightly due to delivery delays in Sector 3.",
+    risk: "Medium",
+    keywords: ["proximity", "idle-time", "sector-3"],
+    metrics: [
+      { label: "Hours Operated", value: "6.0h" },
+      { label: "Efficiency", value: "82%" },
+      { label: "Idle Variance", value: "+12%" }
+    ],
+    eventIds: ["e5", "e6", "e7", "e8", "e9"]
+  },
+  {
+    id: "c3",
+    type: "evening",
+    t: 17.5 * 3600,
+    title: "End of Day Shift Recap",
+    summary: "Shift concluded with daily earthmoving targets met. Equipment secured in parking zones. Safety briefing at 2:30 PM successfully mitigated further proximity risks. Post-operation maintenance checks completed for all primary assets.",
+    risk: "Low",
+    keywords: ["targets-met", "maintenance", "secured"],
+    metrics: [
+      { label: "Hours Operated", value: "10.5h" },
+      { label: "Efficiency", value: "102%" },
+      { label: "Idle Variance", value: "+4%" }
+    ],
+    eventIds: ["e10", "e11", "e12", "e13", "e14", "e15"]
+  }
+];
+
 export function formatClock(seconds: number, opts: { showSeconds?: boolean } = {}): string {
   const s = Math.max(0, Math.min(DAY_SECONDS, seconds));
   const h = Math.floor(s / 3600);
@@ -153,4 +219,9 @@ export function formatClock(seconds: number, opts: { showSeconds?: boolean } = {
   const mm = m.toString().padStart(2, "0");
   const ss = sec.toString().padStart(2, "0");
   return opts.showSeconds ? `${hh}:${mm}:${ss}` : `${hh}:${mm}`;
+}
+
+export function formatFullDate(seconds: number): string {
+  // Mock date for prototype
+  return "April 29, 2026";
 }

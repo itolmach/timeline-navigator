@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import {
   PlaybackToolbar,
   ScrubberTimeline,
@@ -14,6 +15,7 @@ import {
   type EventType,
 } from "@/lib/timeline-data";
 import { cn } from "@/lib/utils";
+import { ShiftSummary } from "@/components/summary/ShiftSummary";
 
 const Index = () => {
   const [now] = useState(() => new Date());
@@ -40,6 +42,17 @@ const Index = () => {
             <h1 className="text-xl font-extrabold tracking-tight text-foreground">
               John Deere 650 Bulldozer
             </h1>
+            <div className="flex gap-4 mt-1">
+               <Link to="/experiment" className="text-[9px] font-bold uppercase tracking-widest text-primary hover:underline transition-all">
+                Switch to Side-by-Side Experiment →
+              </Link>
+              <Link to="/original" className="text-[9px] font-bold uppercase tracking-widest text-primary hover:underline transition-all">
+                Switch to Original PIP View →
+              </Link>
+              <Link to="/sequence" className="text-[9px] font-bold uppercase tracking-widest text-primary hover:underline transition-all">
+                Switch to Event Sequence View →
+              </Link>
+            </div>
           </div>
           
           <div className="flex items-center gap-4">
@@ -77,47 +90,62 @@ const Index = () => {
         </div>
       </div>
 
-      <main className="mx-auto max-w-[1600px] space-y-6 px-6 pb-12">
-        {/* Metrics Row */}
-        <div className="grid grid-cols-5 gap-4 pt-6">
-          {metrics.map((m) => (
-            <div key={m.label} className="panel p-4">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{m.label}</div>
-              <div className="mt-1 flex items-baseline gap-2">
-                <span className={cn("text-3xl font-black tracking-tighter", m.color)}>{m.value}</span>
-                {m.trend !== "neutral" && (
-                  <span className={cn("text-[10px] font-bold", m.trend === "up" ? "text-primary" : "text-destructive")}>
-                    {m.trend === "up" ? "↑" : "↓"} 2.4%
-                  </span>
-                )}
+      <main className="mx-auto flex h-[calc(100vh-80px)] max-w-[1600px] flex-col overflow-hidden px-6 pb-4">
+        {/* Top Section: Metrics + Video (65%) */}
+        <div className="flex h-[65%] min-h-0 flex-col gap-4 py-4 shrink-0">
+          {/* Metrics Row */}
+          <div className="grid grid-cols-5 gap-4">
+            {metrics.map((m) => (
+              <div key={m.label} className="panel py-2 px-4">
+                <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">{m.label}</div>
+                <div className="flex items-baseline gap-2">
+                  <span className={cn("text-xl font-black tracking-tighter", m.color)}>{m.value}</span>
+                  {m.trend !== "neutral" && (
+                    <span className={cn("text-[9px] font-bold", m.trend === "up" ? "text-primary" : "text-destructive")}>
+                      {m.trend === "up" ? "↑" : "↓"} 2.4%
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="mt-1 text-[10px] font-medium text-muted-foreground/80">{m.sub}</div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
 
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold tracking-tight">Timeline Control Center</h2>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">View Mode</span>
-            <div className="inline-flex rounded-lg border border-border bg-surface-2 p-1 text-[10px] font-bold uppercase">
-              <button
-                onClick={() => setCompact(false)}
-                className={cn("rounded-md px-4 py-1.5 transition", !compact ? "bg-surface-1 shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}
-              >
-                Full
-              </button>
-              <button
-                onClick={() => setCompact(true)}
-                className={cn("rounded-md px-4 py-1.5 transition", compact ? "bg-surface-1 shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}
-              >
-                Compact
-              </button>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <h2 className="text-sm font-bold tracking-tight">Timeline Control Center</h2>
+              <div className="h-3 w-px bg-border" />
+              <Link to="/experiment" className="text-[9px] font-bold uppercase tracking-widest text-primary hover:underline transition-all">
+                Switch to Side-by-Side Experiment →
+              </Link>
             </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">View Mode</span>
+              <div className="inline-flex rounded-lg border border-border bg-surface-2 p-0.5 text-[9px] font-bold uppercase">
+                <button
+                  onClick={() => setCompact(false)}
+                  className={cn("rounded-md px-3 py-1 transition", !compact ? "bg-surface-1 shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}
+                >
+                  Full
+                </button>
+                <button
+                  onClick={() => setCompact(true)}
+                  className={cn("rounded-md px-3 py-1 transition", compact ? "bg-surface-1 shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}
+                >
+                  Compact
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 min-h-0">
+             <VideoStage s={s} compact={compact} toolbar={<PlaybackToolbar s={s} />} />
           </div>
         </div>
 
-        <VideoStage s={s} compact={compact} toolbar={<PlaybackToolbar s={s} />} />
+        {/* Bottom Section: Summary (35%) */}
+        <div className="h-[35%] min-h-0 border-t border-border pt-4">
+           <ShiftSummary s={s} />
+        </div>
       </main>
 
       <footer className="mt-12 border-t border-border bg-surface-1 px-6 py-8">
@@ -145,18 +173,15 @@ function VideoStage({
 }) {
   const selected = s.selected;
   return (
-    <div className="panel relative aspect-video w-full overflow-hidden rounded-xl border border-border bg-surface-3 shadow-panel">
+    <div className="panel relative h-full w-full overflow-hidden rounded-xl border border-border bg-surface-3 shadow-panel">
       {/* Main View: Shows event video if selected, otherwise dummy/placeholder */}
       <div className="absolute inset-0 bg-surface-3">
         {selected?.videoUrl ? (
-          <video 
+          <img 
             key={selected.videoUrl}
-            src={selected.videoUrl} 
-            autoPlay 
-            loop 
-            muted 
-            playsInline 
-            className="h-full w-full object-cover"
+            src={`/events/thumb_${selected.id}.jpg`} 
+
+            className="h-full w-full object-cover grayscale-[0.3]"
           />
         ) : (
           <>

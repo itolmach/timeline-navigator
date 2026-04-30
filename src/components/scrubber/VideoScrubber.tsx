@@ -58,7 +58,9 @@ function getTicks(vp: Viewport): { major: number[]; minor: number[]; fmt: (s: nu
 }
 
 function tToPct(t: number, vp: Viewport): number {
-  return ((t - vp.start) / (vp.end - vp.start)) * 100;
+  const span = vp.end - vp.start;
+  if (span <= 0) return 0;
+  return ((t - vp.start) / span) * 100;
 }
 
 // ============================================================================
@@ -138,7 +140,22 @@ export function useScrubber(): ScrubberState {
     if (prev) focusEvent(prev);
   }, [playhead, focusEvent]);
 
-  return { vp, setVp, playhead, setPlayhead, playing, setPlaying, speed, setSpeed, selected, focusEvent, zoom, fit, jumpToNext, jumpToPrev };
+  return useMemo(() => ({ 
+    vp, 
+    setVp, 
+    playhead, 
+    setPlayhead, 
+    playing, 
+    setPlaying, 
+    speed, 
+    setSpeed, 
+    selected, 
+    focusEvent, 
+    zoom, 
+    fit, 
+    jumpToNext, 
+    jumpToPrev 
+  }), [vp, setVp, playhead, setPlayhead, playing, setPlaying, speed, setSpeed, selected, focusEvent, zoom, fit, jumpToNext, jumpToPrev]);
 }
 
 // ============================================================================
@@ -436,6 +453,44 @@ function IntegratedActivityTrack({ vp, height = 80 }: { vp: Viewport; height?: n
 }
 
 // ============================================================================
+// Cost Segment Tooltip Component
+// ============================================================================
+function CostSegmentTooltip({ 
+  segment, 
+  before, 
+  after, 
+  position 
+}: { 
+  segment: CostSegment; 
+  before?: CostSegment; 
+  after?: CostSegment; 
+  position: { left: string } 
+}) {
+  const meta = costCodeMeta[segment.code];
+  const dur = formatClock(segment.end - segment.start, { showSeconds: true });
+  return (
+    <div 
+      className="pointer-events-none absolute bottom-full mb-2 -translate-x-1/2 z-[100] rounded-md border border-border bg-surface-1 px-3 py-2 shadow-panel animate-in fade-in zoom-in-95 w-48"
+      style={{ left: position.left }}
+    >
+      <div className="flex items-center gap-2 mb-1">
+        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: `hsl(var(${meta.cssVar}))` }} />
+        <span className="text-[10px] font-bold uppercase tracking-wider text-foreground">{meta.label}</span>
+      </div>
+      <div className="text-[11px] font-mono text-muted-foreground tabular-nums mb-2">
+        {formatClock(segment.start)} - {formatClock(segment.end)} ({dur})
+      </div>
+      {(before || after) && (
+        <div className="flex justify-between items-center text-[9px] uppercase tracking-wider text-muted-foreground pt-2 border-t border-border">
+          {before ? <span className="truncate flex-1 text-left">&larr; {costCodeMeta[before.code].label}</span> : <span className="flex-1" />}
+          {after ? <span className="truncate flex-1 text-right">{costCodeMeta[after.code].label} &rarr;</span> : <span className="flex-1" />}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
 // Event Tooltip Component
 // ============================================================================
 function EventTooltip({ event, position }: { event: SafetyEvent; position: { left: string; top: number } }) {
@@ -452,12 +507,9 @@ function EventTooltip({ event, position }: { event: SafetyEvent; position: { lef
     >
       <div className="relative aspect-video w-full bg-surface-3">
         {event.videoUrl ? (
-          <video 
-            src={event.videoUrl}
-            autoPlay 
-            muted 
-            loop 
-            playsInline
+          <img 
+            src={`/events/thumb_${event.id}.jpg`}
+
             className="h-full w-full object-cover grayscale-[0.3] brightness-90"
           />
         ) : (
@@ -664,13 +716,13 @@ function Minimap({
         </div>
         <svg className="absolute inset-x-0 bottom-0 h-6 w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
           <path
-            d={(() => {
+            d={useMemo(() => {
               const pts = riskSamples.map((p) => [(p.t / DAY_SECONDS) * 100, (1 - p.v) * 100]);
               let d = `M ${pts[0][0]} 100 L ${pts[0][0]} ${pts[0][1]}`;
               for (let i = 1; i < pts.length; i++) d += ` L ${pts[i][0]} ${pts[i][1]}`;
               d += ` L ${pts[pts.length - 1][0]} 100 Z`;
               return d;
-            })()}
+            }, [])}
             fill="hsl(var(--risk-high) / 0.5)"
           />
         </svg>
