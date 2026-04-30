@@ -15,6 +15,7 @@ import {
 
 const Index = () => {
   const [now] = useState(() => new Date());
+  const [compact, setCompact] = useState(false);
   const s = useScrubber();
   const totalEvents = safetyEvents.length;
   const critical = safetyEvents.filter((e) => e.severity === 3).length;
