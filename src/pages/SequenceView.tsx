@@ -162,9 +162,10 @@ function VideoStage({
             className="h-full w-full object-cover grayscale-[0.3]"
           />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-surface-3 via-surface-2 to-surface-1 flex items-center justify-center">
-             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">No Event Selected</span>
-          </div>
+          <img 
+            src="/events/thumb_c2.jpg" 
+            className="h-full w-full object-cover grayscale-[0.3]"
+          />
         )}
         <div className="absolute inset-0 scanline opacity-40 pointer-events-none" />
       </div>
@@ -214,8 +215,8 @@ function VideoStage({
         </div>
 
         {/* Stitched Sequence Bar */}
-        <div className="pointer-events-auto px-6">
-           <div className="flex h-20 w-full gap-1 rounded-xl border border-white/10 bg-background/80 p-2 shadow-2xl backdrop-blur-xl">
+        <div className="pointer-events-auto flex justify-center px-6 pb-2">
+           <div className="flex h-12 w-[600px] max-w-full gap-1 rounded-xl border border-white/10 bg-background/80 p-1.5 shadow-2xl backdrop-blur-xl mx-auto">
               {sortedEvents.map((event, idx) => {
                 const isActive = idx === currentIndex;
                 const meta = eventTypeMeta[event.type];

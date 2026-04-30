@@ -23,6 +23,7 @@ import {
 const ExperimentView = () => {
   const s = useScrubber();
   const [activeTab, setActiveTab] = useState<"All" | "Morning" | "Midday" | "End of Day">("All");
+  const [localCheckIns, setLocalCheckIns] = useState<CheckIn[]>(checkIns);
   const [selectedCheckInId, setSelectedCheckInId] = useState<string>(checkIns[1].id);
 
   const handleTabChange = (tab: "All" | "Morning" | "Midday" | "End of Day") => {
@@ -40,7 +41,7 @@ const ExperimentView = () => {
     // Select the first check-in of that type if available
     const typeMap: Record<string, string> = { "Morning": "morning", "Midday": "midday", "End of Day": "evening" };
     if (tab !== "All") {
-      const first = checkIns.find(c => c.type === typeMap[tab]);
+      const first = localCheckIns.find(c => c.type === typeMap[tab]);
       if (first) {
         setSelectedCheckInId(first.id);
         s.setPlayhead(first.t);
@@ -48,19 +49,45 @@ const ExperimentView = () => {
     }
   };
 
+  const handleCheckInNow = () => {
+    const now = s.playhead;
+    const newCheckIn: CheckIn = {
+      id: `c_new_${Date.now()}`,
+      t: now,
+      type: now < 12 * 3600 ? "morning" : now < 16 * 3600 ? "midday" : "evening",
+      title: "Ad-hoc Supervisor Check-in",
+      summary: `Manual checkpoint generated for ${formatClock(now)}. Operational metrics captured. No immediate anomalies detected in the preceding timeframe.`,
+      risk: "Low",
+      keywords: ["manual-check", "supervisor"],
+      metrics: [
+        { label: "Check Time", value: formatClock(now) },
+        { label: "Status", value: "Normal" },
+        { label: "Alerts", value: "0" }
+      ],
+      eventIds: []
+    };
+    setLocalCheckIns(prev => {
+      const updated = [...prev, newCheckIn];
+      updated.sort((a, b) => a.t - b.t);
+      return updated;
+    });
+    setSelectedCheckInId(newCheckIn.id);
+    setActiveTab("All");
+  };
+
   const filteredCheckIns = useMemo(() => {
-    if (activeTab === "All") return checkIns;
+    if (activeTab === "All") return localCheckIns;
     const typeMap: Record<string, string> = {
       "Morning": "morning",
       "Midday": "midday",
       "End of Day": "evening"
     };
-    return checkIns.filter(c => c.type === typeMap[activeTab]);
-  }, [activeTab]);
+    return localCheckIns.filter(c => c.type === typeMap[activeTab]);
+  }, [activeTab, localCheckIns]);
 
   const selectedCheckIn = useMemo(() => 
-    checkIns.find(c => c.id === selectedCheckInId) || checkIns[0],
-    [selectedCheckInId]
+    localCheckIns.find(c => c.id === selectedCheckInId) || localCheckIns[0],
+    [selectedCheckInId, localCheckIns]
   );
 
   return (
@@ -102,7 +129,15 @@ const ExperimentView = () => {
                 ))}
              </div>
              
-             <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Shift Timeline</div>
+             <div className="flex items-center justify-between">
+               <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Shift Timeline</div>
+               <button 
+                 onClick={handleCheckInNow}
+                 className="px-2 py-1 bg-primary text-primary-foreground text-[9px] font-bold uppercase tracking-widest rounded transition-colors hover:bg-primary/90"
+               >
+                 Check-in Now
+               </button>
+             </div>
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">

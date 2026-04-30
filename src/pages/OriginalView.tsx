@@ -100,17 +100,7 @@ const OriginalView = () => {
            <VideoStage s={s} compact={true} toolbar={null} isPip={true} />
         </div>
 
-        {/* Floating Compact Time Bar (Visible when scrolled down) */}
-        <div className={cn(
-          "fixed bottom-12 left-1/2 -translate-x-1/2 z-[90] w-[800px] transition-all duration-500 ease-in-out transform",
-          isMinimized 
-            ? "translate-y-0 opacity-100 scale-100" 
-            : "translate-y-20 opacity-0 scale-90 pointer-events-none"
-        )}>
-           <div className="backdrop-blur-md bg-background/80 rounded-xl overflow-hidden border border-white/10 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] p-1">
-             <ScrubberTimeline s={s} compact={true} />
-           </div>
-        </div>
+
 
         {/* Summary Content Section */}
         <div className="pb-24">
@@ -172,7 +162,10 @@ function VideoStage({
             className="h-full w-full object-cover grayscale-[0.3]"
           />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-surface-3 via-surface-2 to-surface-1" />
+          <img 
+            src="/events/thumb_c2.jpg" 
+            className="h-full w-full object-cover grayscale-[0.3]"
+          />
         )}
         <div className="absolute inset-0 scanline opacity-40 pointer-events-none" />
       </div>
@@ -208,13 +201,11 @@ function VideoStage({
         {!isPip && toolbar && <div className="pointer-events-auto">{toolbar}</div>}
 
         {/* Scrubber Timeline */}
-        {!isPip && (
-          <div className="pointer-events-auto">
-             <div className="backdrop-blur-md bg-background/40 rounded-xl overflow-hidden border border-white/10 shadow-2xl">
-               <ScrubberTimeline s={s} compact={compact} />
-             </div>
-          </div>
-        )}
+        <div className="pointer-events-auto">
+           <div className={cn("backdrop-blur-md bg-background/40 overflow-hidden shadow-2xl border", isPip ? "rounded-lg border-white/5" : "rounded-xl border-white/10")}>
+             <ScrubberTimeline s={s} compact={isPip ? true : compact} />
+           </div>
+        </div>
       </div>
     </div>
   );

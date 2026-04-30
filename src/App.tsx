@@ -7,6 +7,7 @@ import Index from "./pages/Index.tsx";
 import ExperimentView from "./pages/ExperimentView.tsx";
 import OriginalView from "./pages/OriginalView.tsx";
 import SequenceView from "./pages/SequenceView.tsx";
+import CompactView from "./pages/CompactView.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -22,6 +23,7 @@ const App = () => (
           <Route path="/experiment" element={<ExperimentView />} />
           <Route path="/original" element={<OriginalView />} />
           <Route path="/sequence" element={<SequenceView />} />
+          <Route path="/compact" element={<CompactView />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

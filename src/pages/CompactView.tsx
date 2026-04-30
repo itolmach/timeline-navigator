@@ -17,9 +17,9 @@ import {
 import { cn } from "@/lib/utils";
 import { ShiftSummary } from "@/components/summary/ShiftSummary";
 
-const Index = () => {
+const CompactView = () => {
   const [now] = useState(() => new Date());
-  const [compact, setCompact] = useState(true);
+  const compact = true;
   const s = useScrubber();
   
   const metrics = [
@@ -119,21 +119,7 @@ const Index = () => {
               </Link>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">View Mode</span>
-              <div className="inline-flex rounded-lg border border-border bg-surface-2 p-0.5 text-[9px] font-bold uppercase">
-                <button
-                  onClick={() => setCompact(false)}
-                  className={cn("rounded-md px-3 py-1 transition", !compact ? "bg-surface-1 shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}
-                >
-                  Full
-                </button>
-                <button
-                  onClick={() => setCompact(true)}
-                  className={cn("rounded-md px-3 py-1 transition", compact ? "bg-surface-1 shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}
-                >
-                  Compact
-                </button>
-              </div>
+              <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">View Mode: Compact</span>
             </div>
           </div>
 
@@ -318,4 +304,4 @@ function Legend() {
   );
 }
 
-export default Index;
+export default CompactView;
