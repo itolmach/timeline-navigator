@@ -15,6 +15,7 @@ import {
 
 const Index = () => {
   const [now] = useState(() => new Date());
+  const [compact, setCompact] = useState(false);
   const s = useScrubber();
   const totalEvents = safetyEvents.length;
   const critical = safetyEvents.filter((e) => e.severity === 3).length;
@@ -55,9 +56,34 @@ const Index = () => {
       </header>
 
       <main className="mx-auto max-w-[1600px] space-y-4 p-6">
+        <div className="flex items-center justify-end gap-2">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            View
+          </span>
+          <div className="inline-flex rounded-md border border-border bg-surface-2 p-0.5 font-mono text-[10px] uppercase tracking-widest">
+            <button
+              onClick={() => setCompact(false)}
+              className={
+                "rounded px-3 py-1 transition " +
+                (!compact ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")
+              }
+            >
+              Full
+            </button>
+            <button
+              onClick={() => setCompact(true)}
+              className={
+                "rounded px-3 py-1 transition " +
+                (compact ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")
+              }
+            >
+              Compact
+            </button>
+          </div>
+        </div>
         <VideoStage selected={s.selected} toolbar={<PlaybackToolbar s={s} />} />
-        <ScrubberTimeline s={s} />
-        <Legend />
+        <ScrubberTimeline s={s} compact={compact} />
+        {!compact && <Legend />}
       </main>
 
       <footer className="border-t border-border-strong bg-surface-1/40 px-6 py-4">
