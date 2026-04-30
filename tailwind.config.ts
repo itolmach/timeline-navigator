@@ -13,15 +13,46 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+      },
       colors: {
         border: "hsl(var(--border))",
+        "border-strong": "hsl(var(--border-strong))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        surface: {
+          1: "hsl(var(--surface-1))",
+          2: "hsl(var(--surface-2))",
+          3: "hsl(var(--surface-3))",
+        },
+        risk: {
+          low: "hsl(var(--risk-low))",
+          med: "hsl(var(--risk-med))",
+          high: "hsl(var(--risk-high))",
+          critical: "hsl(var(--risk-critical))",
+        },
+        cc: {
+          grading: "hsl(var(--cc-grading))",
+          digging: "hsl(var(--cc-digging))",
+          moving: "hsl(var(--cc-moving))",
+          loading: "hsl(var(--cc-loading))",
+          idle: "hsl(var(--cc-idle))",
+        },
+        evt: {
+          proximity: "hsl(var(--evt-proximity))",
+          misuse: "hsl(var(--evt-misuse))",
+          speed: "hsl(var(--evt-speed))",
+          zone: "hsl(var(--evt-zone))",
+          ppe: "hsl(var(--evt-ppe))",
+        },
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          glow: "hsl(var(--primary-glow))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",

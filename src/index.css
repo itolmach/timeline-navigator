@@ -2,104 +2,102 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Site Ops Video Scrubber — control-room design system. All colors HSL. */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Surfaces */
+    --background: 222 28% 7%;
+    --foreground: 210 30% 96%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --surface-1: 222 26% 10%;
+    --surface-2: 220 22% 13%;
+    --surface-3: 220 20% 17%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --card: 222 26% 10%;
+    --card-foreground: 210 30% 96%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --popover: 222 26% 10%;
+    --popover-foreground: 210 30% 96%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Brand — electric cyan */
+    --primary: 188 95% 55%;
+    --primary-foreground: 222 40% 8%;
+    --primary-glow: 188 100% 70%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --secondary: 220 20% 17%;
+    --secondary-foreground: 210 30% 96%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --muted: 220 18% 14%;
+    --muted-foreground: 215 16% 60%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --accent: 188 80% 22%;
+    --accent-foreground: 188 100% 85%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --destructive: 350 85% 58%;
+    --destructive-foreground: 210 30% 98%;
 
-    --radius: 0.5rem;
+    --border: 220 18% 18%;
+    --border-strong: 220 18% 26%;
+    --input: 220 18% 18%;
+    --ring: 188 95% 55%;
 
-    --sidebar-background: 0 0% 98%;
+    --radius: 0.625rem;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    /* Risk gradient stops (hills/valleys) */
+    --risk-low: 152 70% 45%;
+    --risk-med: 42 95% 58%;
+    --risk-high: 14 90% 58%;
+    --risk-critical: 350 90% 60%;
 
-    --sidebar-primary: 240 5.9% 10%;
+    /* Cost codes */
+    --cc-grading: 200 90% 58%;
+    --cc-digging: 280 70% 65%;
+    --cc-moving: 160 70% 50%;
+    --cc-loading: 38 95% 58%;
+    --cc-idle: 220 12% 28%;
 
-    --sidebar-primary-foreground: 0 0% 98%;
+    /* Safety event types */
+    --evt-proximity: 350 90% 62%;   /* human near machinery — critical */
+    --evt-misuse: 28 95% 58%;       /* operator misuse */
+    --evt-speed: 50 95% 58%;        /* overspeed */
+    --evt-zone: 280 75% 68%;        /* zone breach */
+    --evt-ppe: 188 90% 55%;         /* PPE violation */
 
-    --sidebar-accent: 240 4.8% 95.9%;
+    /* Effects */
+    --shadow-glow: 0 0 24px hsl(var(--primary) / 0.35);
+    --shadow-panel: 0 8px 32px -12px hsl(220 50% 2% / 0.6);
+    --gradient-risk: linear-gradient(180deg, hsl(var(--risk-critical) / 0.85), hsl(var(--risk-med) / 0.55) 55%, hsl(var(--risk-low) / 0.35));
+    --gradient-surface: linear-gradient(180deg, hsl(var(--surface-2)), hsl(var(--surface-1)));
 
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --transition-smooth: cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
-
+  * { @apply border-border; }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "ss01", "cv11";
   }
+  .font-mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace; }
+}
+
+@layer utilities {
+  .timeline-grid {
+    background-image:
+      linear-gradient(to right, hsl(var(--border) / 0.5) 1px, transparent 1px);
+    background-size: 60px 100%;
+  }
+  .scanline {
+    background: repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent 3px,
+      hsl(var(--primary) / 0.04) 3px,
+      hsl(var(--primary) / 0.04) 4px
+    );
+  }
+  .glow-primary { box-shadow: var(--shadow-glow); }
+  .panel { background: var(--gradient-surface); box-shadow: var(--shadow-panel); }
 }
