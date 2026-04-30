@@ -604,12 +604,18 @@ export function ScrubberTimeline({ s, compact = false }: { s: ScrubberState; com
   const playheadLeft = tToPct(s.playhead, s.vp);
 
   return (
-    <div className="panel rounded-xl border border-border-strong p-4">
-      <div ref={stackRef} onClick={handleTimelineClick} className="relative cursor-crosshair space-y-1">
-        <Ruler vp={s.vp} />
-        <CostCodeTrack vp={s.vp} />
-        <RiskTrack vp={s.vp} />
-        <EventsTrack vp={s.vp} onSelect={s.focusEvent} selectedId={s.selected?.id} />
+    <div className={cn("panel rounded-xl border border-border-strong", compact ? "p-2" : "p-4")}>
+      <div ref={stackRef} onClick={handleTimelineClick} className={cn("relative cursor-crosshair", compact ? "" : "space-y-1")}>
+        {compact ? (
+          <CompactTrack vp={s.vp} onSelect={s.focusEvent} selectedId={s.selected?.id} />
+        ) : (
+          <>
+            <Ruler vp={s.vp} />
+            <CostCodeTrack vp={s.vp} />
+            <RiskTrack vp={s.vp} />
+            <EventsTrack vp={s.vp} onSelect={s.focusEvent} selectedId={s.selected?.id} />
+          </>
+        )}
 
         {playheadInVp && (
           <div className="pointer-events-none absolute top-0 bottom-0 z-30" style={{ left: `${playheadLeft}%` }}>
@@ -629,13 +635,15 @@ export function ScrubberTimeline({ s, compact = false }: { s: ScrubberState; com
         )}
       </div>
 
-      <div className="mt-3">
+      <div className={compact ? "mt-2" : "mt-3"}>
         <Minimap vp={s.vp} setVp={s.setVp} playhead={s.playhead} zoom={s.zoom} fit={s.fit} />
       </div>
 
-      <div className="mt-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-        Scroll = zoom · Shift+Scroll = pan · Drag minimap window · Click to seek
-      </div>
+      {!compact && (
+        <div className="mt-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+          Scroll = zoom · Shift+Scroll = pan · Drag minimap window · Click to seek
+        </div>
+      )}
     </div>
   );
 }
