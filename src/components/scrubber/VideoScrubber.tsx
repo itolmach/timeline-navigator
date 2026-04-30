@@ -445,9 +445,114 @@ function Minimap({
 }
 
 // ============================================================================
+// Compact embedded track — risk silhouette + ruler + cost strip + event pins
+// ============================================================================
+function CompactTrack({
+  vp, onSelect, selectedId,
+}: { vp: Viewport; onSelect: (e: SafetyEvent) => void; selectedId?: string }) {
+  const { major, minor, fmt } = getTicks(vp);
+
+  // monochrome risk silhouette (height = risk)
+  const riskPath = useMemo(() => {
+    const points = riskSamples.filter((s) => s.t >= vp.start - 60 && s.t <= vp.end + 60);
+    if (points.length < 2) return "";
+    const pts = points.map((p) => [tToPct(p.t, vp), (1 - p.v) * 100]);
+    let d = `M ${pts[0][0]} 100 L ${pts[0][0]} ${pts[0][1]}`;
+    for (let i = 1; i < pts.length; i++) d += ` L ${pts[i][0]} ${pts[i][1]}`;
+    d += ` L ${pts[pts.length - 1][0]} 100 Z`;
+    return d;
+  }, [vp]);
+
+  const visibleEvents = safetyEvents.filter((e) => e.t >= vp.start && e.t <= vp.end);
+  const visibleSegments = costSegments.filter((s) => s.end >= vp.start && s.start <= vp.end);
+
+  return (
+    <div className="relative w-full select-none">
+      {/* Risk silhouette — monochrome, height encodes risk */}
+      <div className="relative h-6 w-full overflow-hidden rounded-t-md border border-b-0 border-border bg-surface-1">
+        <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <path d={riskPath} fill="hsl(var(--foreground) / 0.55)" />
+        </svg>
+        <div className="pointer-events-none absolute left-1.5 top-0.5 font-mono text-[9px] uppercase tracking-widest text-muted-foreground/80">
+          Risk
+        </div>
+      </div>
+
+      {/* Time bar with embedded cost strip + event pins */}
+      <div className="relative h-9 w-full overflow-hidden rounded-b-md border border-border bg-surface-2">
+        {/* tick marks */}
+        {minor.map((t) => (
+          <div key={`mi-${t}`} className="absolute top-0 w-px bg-border" style={{ left: `${tToPct(t, vp)}%`, height: 5 }} />
+        ))}
+        {major.map((t) => (
+          <div key={`ma-${t}`} className="absolute top-0" style={{ left: `${tToPct(t, vp)}%` }}>
+            <div className="h-2.5 w-px bg-border-strong" />
+            <div className="absolute left-1 top-0.5 whitespace-nowrap font-mono text-[9px] tabular-nums text-muted-foreground">
+              {fmt(t)}
+            </div>
+          </div>
+        ))}
+
+        {/* embedded event pins */}
+        {visibleEvents.map((e) => {
+          const meta = eventTypeMeta[e.type];
+          const isSelected = e.id === selectedId;
+          return (
+            <button
+              key={e.id}
+              onClick={(ev) => { ev.stopPropagation(); onSelect(e); }}
+              className={cn(
+                "absolute -translate-x-1/2 cursor-pointer outline-none",
+                "transition-transform hover:scale-125",
+                isSelected && "z-20 scale-125",
+              )}
+              style={{ left: `${tToPct(e.t, vp)}%`, top: 14 }}
+              title={e.label}
+            >
+              <div
+                className="rounded-full border border-background shadow-sm"
+                style={{
+                  width: e.severity === 3 ? 9 : 7,
+                  height: e.severity === 3 ? 9 : 7,
+                  background: `hsl(var(${meta.cssVar}))`,
+                  boxShadow: e.severity === 3 ? `0 0 6px hsl(var(${meta.cssVar}) / 0.8)` : undefined,
+                }}
+              />
+            </button>
+          );
+        })}
+
+        {/* 1px cost code strip embedded at the very bottom */}
+        <div className="absolute inset-x-0 bottom-0 h-px">
+          {visibleSegments.map((seg, i) => {
+            const left = Math.max(0, tToPct(seg.start, vp));
+            const right = Math.min(100, tToPct(seg.end, vp));
+            const width = Math.max(0, right - left);
+            if (width <= 0) return null;
+            const meta = costCodeMeta[seg.code];
+            return (
+              <div
+                key={i}
+                className="absolute top-0 bottom-0"
+                style={{
+                  left: `${left}%`,
+                  width: `${width}%`,
+                  background: seg.code === "idle" ? "hsl(var(--cc-idle))" : `hsl(var(${meta.cssVar}))`,
+                }}
+                title={`${meta.label} • ${formatClock(seg.start)} → ${formatClock(seg.end)}`}
+              />
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
 // Timeline (tracks + minimap, no top toolbar)
 // ============================================================================
-export function ScrubberTimeline({ s }: { s: ScrubberState }) {
+export function ScrubberTimeline({ s, compact = false }: { s: ScrubberState; compact?: boolean }) {
   const stackRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
