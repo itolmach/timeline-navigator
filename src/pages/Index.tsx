@@ -77,9 +77,9 @@ const Index = () => {
         </div>
       </div>
 
-      <main className="mx-auto max-w-[1600px] space-y-6 p-6">
+      <main className="mx-auto max-w-[1600px] space-y-6 px-6 pb-12">
         {/* Metrics Row */}
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid grid-cols-5 gap-4 pt-6">
           {metrics.map((m) => (
             <div key={m.label} className="panel p-4">
               <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{m.label}</div>
@@ -117,15 +117,7 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Timeline moved UP (on top of video) */}
-        <div className="space-y-4">
-          <ScrubberTimeline s={s} compact={compact} />
-        </div>
-
-        <VideoStage s={s} toolbar={<PlaybackToolbar s={s} />} />
-        
-        {/* Legend always at bottom */}
-        <Legend />
+        <VideoStage s={s} compact={compact} toolbar={<PlaybackToolbar s={s} />} />
       </main>
 
       <footer className="mt-12 border-t border-border bg-surface-1 px-6 py-8">
@@ -145,111 +137,107 @@ const Index = () => {
 function VideoStage({
   s,
   toolbar,
+  compact,
 }: {
   s: ScrubberState;
   toolbar: React.ReactNode;
+  compact: boolean;
 }) {
   const selected = s.selected;
   return (
     <div className="panel relative aspect-video w-full overflow-hidden rounded-xl border border-border bg-surface-3 shadow-panel">
-      {/* Mock camera scene */}
-      <div className="absolute inset-0 bg-gradient-to-br from-surface-3 via-surface-2 to-surface-1" />
-      <div className="absolute inset-0 scanline opacity-40" />
-      
-      <svg viewBox="0 0 400 225" className="absolute inset-0 h-full w-full opacity-60" preserveAspectRatio="xMidYMid meet">
-        <path d="M0 180 L 80 175 L 130 160 L 200 165 L 280 155 L 400 165 L 400 225 L 0 225 Z" fill="hsl(var(--surface-3))" />
-        <g fill="hsl(var(--cc-loading))" opacity="0.85">
-          <rect x="180" y="120" width="60" height="32" rx="3" />
-          <rect x="200" y="100" width="34" height="24" rx="3" />
-          <path d="M155 152 L 245 152 L 240 168 L 160 168 Z" />
-          <circle cx="175" cy="170" r="8" fill="hsl(var(--background))" />
-          <circle cx="225" cy="170" r="8" fill="hsl(var(--background))" />
-          <path d="M232 130 L 280 105 L 290 115 L 245 142 Z" />
-        </g>
-        <circle cx="115" cy="158" r="4" fill="hsl(var(--evt-proximity))" />
-      </svg>
-
-      {/* HUD: top-left status */}
-      <div className="absolute left-4 top-4 flex items-center gap-2.5 rounded-lg border border-border bg-surface-1/90 px-3 py-1.5 shadow-sm backdrop-blur">
-        <span className="h-2 w-2 animate-pulse rounded-full bg-destructive" />
-        <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-foreground">
-          Live feed <span className="text-muted-foreground ml-1">● 4K Ultra HD</span>
-        </span>
+      {/* Main View: Shows event video if selected, otherwise dummy/placeholder */}
+      <div className="absolute inset-0 bg-surface-3">
+        {selected?.videoUrl ? (
+          <video 
+            key={selected.videoUrl}
+            src={selected.videoUrl} 
+            autoPlay 
+            loop 
+            muted 
+            playsInline 
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <>
+            <div className="absolute inset-0 bg-gradient-to-br from-surface-3 via-surface-2 to-surface-1" />
+            <svg viewBox="0 0 400 225" className="absolute inset-0 h-full w-full opacity-60" preserveAspectRatio="xMidYMid meet">
+              <path d="M0 180 L 80 175 L 130 160 L 200 165 L 280 155 L 400 165 L 400 225 L 0 225 Z" fill="hsl(var(--surface-3))" />
+              <g fill="hsl(var(--cc-loading))" opacity="0.85">
+                <rect x="180" y="120" width="60" height="32" rx="3" />
+                <rect x="200" y="100" width="34" height="24" rx="3" />
+                <path d="M155 152 L 245 152 L 240 168 L 160 168 Z" />
+                <circle cx="175" cy="170" r="8" fill="hsl(var(--background))" />
+                <circle cx="225" cy="170" r="8" fill="hsl(var(--background))" />
+                <path d="M232 130 L 280 105 L 290 115 L 245 142 Z" />
+              </g>
+              <circle cx="115" cy="158" r="4" fill="hsl(var(--evt-proximity))" />
+            </svg>
+          </>
+        )}
+        <div className="absolute inset-0 scanline opacity-40 pointer-events-none" />
       </div>
-      
-      <div className="absolute right-4 top-4 rounded-lg border border-border bg-surface-1/90 px-3 py-1.5 text-[10px] font-bold text-muted-foreground backdrop-blur shadow-sm uppercase tracking-widest">
-        Sector 3 <span className="text-border-strong mx-1">|</span> Cam-04
-      </div>
 
-      {/* Picture-in-Picture: selected event */}
-      {selected && (
-        <div className="absolute right-4 top-16 w-72 overflow-hidden rounded-xl border border-border bg-surface-1 shadow-lg transition-all animate-in fade-in slide-in-from-right-4">
-          <div className="flex items-center justify-between border-b border-border bg-surface-2 px-3 py-2">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-              Event Preview
-            </span>
-            <span className="font-mono text-[10px] font-bold tabular-nums text-primary">
-              {formatClock(selected.t, { showSeconds: true })}
-            </span>
-          </div>
-          {/* Mini scene preview */}
-          <div className="relative aspect-video w-full overflow-hidden bg-surface-3">
-            {selected.videoUrl ? (
-              <video 
-                key={selected.videoUrl}
-                src={selected.videoUrl} 
-                autoPlay 
-                loop 
-                muted 
-                playsInline 
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <svg viewBox="0 0 200 112" className="absolute inset-0 h-full w-full opacity-60" preserveAspectRatio="xMidYMid meet">
-                <path d="M0 90 L 200 85 L 200 112 L 0 112 Z" fill="hsl(var(--surface-3))" />
-                <rect x="80" y="55" width="40" height="22" rx="2" fill="hsl(var(--cc-loading))" />
-                <circle cx="60" cy="78" r="3" fill="hsl(var(--evt-proximity))">
-                  <animate attributeName="r" values="3;5;3" dur="1.4s" repeatCount="indefinite" />
-                </circle>
-              </svg>
-            )}
-            <div className="absolute inset-0 scanline opacity-20 pointer-events-none" />
-            <div
-              className="absolute left-3 top-3 rounded px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow-sm"
-              style={{ background: `hsl(var(${eventTypeMeta[selected.type].cssVar}))` }}
-            >
-              {eventTypeMeta[selected.type].label}
-            </div>
-          </div>
-          <div className="p-4">
-            <div className="text-[12px] font-bold leading-tight text-foreground">{selected.label}</div>
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              <button 
-                onClick={() => s.jumpToPrev()}
-                className="flex items-center justify-center rounded-lg border border-border bg-surface-1 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:bg-surface-2 transition-colors active:scale-95"
-              >
-                Prev
-              </button>
-              <button 
-                onClick={() => s.setPlayhead(selected.t - 5)}
-                className="flex items-center justify-center rounded-lg bg-primary py-1.5 text-[10px] font-bold uppercase tracking-wider text-primary-foreground hover:bg-primary-glow transition-colors shadow-sm active:scale-95"
-              >
-                Replay
-              </button>
-              <button 
-                onClick={() => s.jumpToNext()}
-                className="flex items-center justify-center rounded-lg border border-border bg-surface-1 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:bg-surface-2 transition-colors active:scale-95"
-              >
-                Next
-              </button>
-            </div>
-          </div>
+      {/* Floating UI Layer */}
+      <div className="absolute inset-0 z-20 p-6 flex flex-col justify-end gap-3 pointer-events-none overflow-hidden">
+        {/* Top HUD Row - Still at top via justify-end behavior of the outer flex? No, I need another container for top elements if I want them at top. */}
+        {/* Wait, the flex-col justify-end will push EVERYTHING to bottom. */}
+        {/* I'll use absolute for the HUD. */}
+        
+        {/* 1. HUD & Tags (Top Row - Absolute) */}
+        <div className="absolute inset-x-6 top-6 flex items-center justify-between pointer-events-none">
+           <div className="flex items-center gap-3">
+             <div className="pointer-events-auto flex items-center gap-2.5 rounded-lg border border-border bg-surface-1/90 px-3 py-1.5 shadow-sm backdrop-blur-md">
+               <span className="h-2 w-2 animate-pulse rounded-full bg-destructive" />
+               <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-foreground">
+                 Live feed <span className="text-muted-foreground ml-1">● 4K Ultra HD</span>
+               </span>
+             </div>
+
+             {/* Compact Legend Embedded at Top */}
+             <div className="pointer-events-auto flex items-center gap-4 rounded-lg border border-border bg-surface-1/90 px-3 py-1.5 shadow-sm backdrop-blur-md">
+                <div className="flex items-center gap-3">
+                   {(Object.keys(costCodeMeta) as CostCode[]).map(c => (
+                      <div key={c} className="flex items-center gap-1.5">
+                         <div 
+                           className="h-2 w-2 rounded-full" 
+                           style={{ background: c === 'idle' ? 'repeating-linear-gradient(45deg, #64748b, #64748b 2px, #94a3b8 2px, #94a3b8 4px)' : costCodeMeta[c].color }} 
+                         />
+                         <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{costCodeMeta[c].label}</span>
+                      </div>
+                   ))}
+                </div>
+                <div className="h-3 w-px bg-border" />
+                <div className="flex items-center gap-3">
+                   {(Object.keys(eventTypeMeta) as EventType[]).map(t => (
+                      <div key={t} className="flex items-center gap-1.5">
+                         <div 
+                           className="h-2 w-2 rounded-sm rotate-45" 
+                           style={{ background: `hsl(var(${eventTypeMeta[t].cssVar}))` }} 
+                         />
+                         <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{eventTypeMeta[t].label}</span>
+                      </div>
+                   ))}
+                </div>
+             </div>
+           </div>
+
+           <div className="pointer-events-auto rounded-lg border border-border bg-surface-1/90 px-3 py-1.5 text-[10px] font-bold text-muted-foreground backdrop-blur-md shadow-sm uppercase tracking-widest">
+             Sector 3 <span className="text-border-strong mx-1">|</span> Cam-04
+           </div>
         </div>
-      )}
 
-      {/* Playback toolbar overlay (bottom) */}
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-surface-2/95 via-surface-2/40 to-transparent px-4 pb-4 pt-12">
-        {toolbar}
+        {/* 2. Unified Command Pane (Toolbar) */}
+        <div className="pointer-events-auto">
+           {toolbar}
+        </div>
+
+        {/* 3. Scrubber Timeline */}
+        <div className="pointer-events-auto">
+           <div className="backdrop-blur-md bg-background/40 rounded-xl overflow-hidden border border-white/10 shadow-2xl">
+             <ScrubberTimeline s={s} compact={compact} />
+           </div>
+        </div>
       </div>
     </div>
   );

@@ -182,99 +182,131 @@ export function PlaybackToolbar({ s }: { s: ScrubberState }) {
       .sort((a, b) => a.t - b.t)[0];
   }, [s.playhead]);
 
-  const minutesToEvent = nextEvent 
-    ? Math.floor((nextEvent.t - s.playhead) / 60) 
-    : null;
+  const timeToEventStr = useMemo(() => {
+    if (!nextEvent) return "NO EVENTS";
+    const diff = nextEvent.t - s.playhead;
+    if (diff <= 0) return "IN PROGRESS";
+    const m = Math.floor(diff / 60);
+    const sec = Math.floor(diff % 60);
+    return `T-${m}M ${sec}S`;
+  }, [nextEvent, s.playhead]);
 
   return (
-    <div className="flex flex-wrap items-stretch gap-4">
-      {/* Play/Pause & Speed */}
-      <div className="flex flex-col gap-2">
-        <button
-          onClick={() => s.setPlaying((p) => !p)}
-          className="inline-flex h-full min-w-[140px] items-center justify-center gap-2 rounded-lg bg-primary px-6 font-bold uppercase tracking-widest text-primary-foreground transition-all hover:bg-primary-glow shadow-md hover:shadow-lg active:scale-95"
-        >
-          {s.playing ? (
-            <><svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Pause</>
-          ) : (
-            <><svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4"><path d="M8 5v14l11-7z"/></svg> Play</>
-          )}
-        </button>
-        <div className="flex items-center gap-1 rounded-lg border border-border bg-surface-1 p-1 text-[10px] font-bold">
-          {[1, 30, 60, 240, 600].map((sp) => (
-            <button
-              key={sp}
-              onClick={() => s.setSpeed(sp)}
-              className={cn(
-                "rounded-md px-2.5 py-1 transition",
-                s.speed === sp ? "bg-secondary text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-              )}
+    <div className="flex h-12 items-center gap-4 rounded-xl border border-border bg-surface-1/95 px-3 py-1 shadow-panel backdrop-blur-md">
+       {/* 1. Playback & Navigation */}
+       <div className="flex items-center gap-3 border-r border-border pr-4">
+          <div className="flex items-center gap-1">
+            <button 
+              onClick={() => s.jumpToPrev()}
+              className="flex h-7 px-3 items-center justify-center rounded-md border border-border bg-surface-2 text-[9px] font-bold uppercase tracking-wider text-muted-foreground hover:bg-surface-3 transition-colors active:scale-95"
             >
-              {sp}×
+              Prev
             </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Analytics Dashboard */}
-      <div className="flex flex-1 flex-wrap gap-4 rounded-xl border border-border bg-surface-1 p-3 shadow-panel">
-        {/* Risk Metrics */}
-        <div className="flex min-w-[140px] flex-col border-r border-border pr-4">
-          <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">Live Risk Analysis</div>
-          <div className="flex items-baseline gap-3 mt-1">
-            <div className={cn(
-              "text-3xl font-black tabular-nums tracking-tighter leading-none",
-              riskValue > 3.5 ? "text-destructive" : riskValue > 2.5 ? "text-risk-med" : "text-primary"
-            )}>
-              {riskValue.toFixed(2)}
-            </div>
-            <div className={cn(
-              "text-[11px] font-bold tabular-nums",
-              riskDiff >= 0 ? "text-destructive" : "text-primary"
-            )}>
-              {riskDiff >= 0 ? "↑" : "↓"} {Math.abs(riskDiff).toFixed(2)}
-            </div>
+            <button 
+              onClick={() => s.setPlayhead(s.selected?.t || s.playhead)}
+              className="flex h-7 px-3 items-center justify-center rounded-md border border-border bg-surface-2 text-[9px] font-bold uppercase tracking-wider text-muted-foreground hover:bg-surface-3 transition-colors active:scale-95"
+            >
+              Replay
+            </button>
+            <button 
+              onClick={() => s.jumpToNext()}
+              className="flex h-7 px-3 items-center justify-center rounded-md border border-border bg-surface-2 text-[9px] font-bold uppercase tracking-wider text-muted-foreground hover:bg-surface-3 transition-colors active:scale-95"
+            >
+              Next
+            </button>
           </div>
-          <div className="mt-1 text-[9px] font-medium text-muted-foreground uppercase tracking-wider">
-            {riskDiff > 0.3 ? "Alert: Elevated Risk" : "Stable profile"}
-          </div>
-        </div>
 
-        {/* Current Activity */}
-        <div className="flex flex-1 min-w-[240px] flex-col px-2">
+          <button
+            onClick={() => s.setPlaying((p) => !p)}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground transition-all hover:bg-primary-glow shadow-md active:scale-95"
+          >
+            {s.playing ? (
+              <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 ml-0.5"><path d="M8 5v14l11-7z"/></svg>
+            )}
+          </button>
+
+          <div className="flex items-center gap-1 rounded-md bg-surface-2 p-0.5 text-[9px] font-bold">
+            {[1, 30, 60, 240, 600].map((sp) => (
+              <button
+                key={sp}
+                onClick={() => s.setSpeed(sp)}
+                className={cn(
+                  "rounded-sm px-2 py-1 transition",
+                  s.speed === sp ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {sp}×
+              </button>
+            ))}
+          </div>
+       </div>
+
+       {/* 2. Risk Analysis + Event Details Embedded */}
+       <div className="flex items-center border-r border-border pr-4 gap-4 min-w-[280px]">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">Active Operational State</span>
+             <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">Risk:</span>
+             <div className="flex items-baseline gap-1.5">
+               <span className={cn(
+                 "text-lg font-black tabular-nums tracking-tight leading-none",
+                 riskValue > 3.5 ? "text-destructive" : riskValue > 2.5 ? "text-risk-med" : "text-primary"
+               )}>
+                 {riskValue.toFixed(2)}
+               </span>
+               <span className={cn(
+                 "text-[9px] font-bold tabular-nums",
+                 riskDiff >= 0 ? "text-destructive" : "text-primary"
+               )}>
+                 {riskDiff >= 0 ? "↑" : "↓"} {Math.abs(riskDiff).toFixed(2)}
+               </span>
+             </div>
+          </div>
+
+          {s.selected && (
+             <div className="pl-4 border-l border-border flex items-center gap-3 animate-in fade-in slide-in-from-left-1 duration-300">
+                <span 
+                  className="rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-white whitespace-nowrap"
+                  style={{ background: `hsl(var(${eventTypeMeta[s.selected.type].cssVar}))` }}
+                >
+                  {eventTypeMeta[s.selected.type].label}
+                </span>
+                <span className="text-[10px] font-bold text-foreground leading-tight line-clamp-1 max-w-[140px]">
+                  {s.selected.label}
+                </span>
+             </div>
+          )}
+       </div>
+
+       {/* 3. Operational State */}
+       <div className="flex flex-1 items-center gap-3 overflow-hidden">
+          <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">State:</span>
+          <div className="flex items-center gap-2 overflow-hidden">
             {currentSegment && (
-              <span className="rounded-full bg-accent px-2 py-0.5 text-[9px] font-bold uppercase text-accent-foreground border border-primary/20">
+              <span className="rounded-full bg-accent px-1.5 py-0.5 text-[8px] font-bold uppercase text-accent-foreground border border-primary/10 whitespace-nowrap">
                 {costCodeMeta[currentSegment.code].label}
               </span>
             )}
+            <span className="text-[11px] font-bold text-foreground truncate">
+              {currentSegment ? activityDesc[currentSegment.code] : "Synchronizing..."}
+            </span>
           </div>
-          <div className="mt-2 line-clamp-1 text-[12px] font-semibold text-foreground">
-            {currentSegment ? activityDesc[currentSegment.code] : "Synchronizing asset telemetry..."}
-          </div>
-          <div className="mt-auto flex items-center gap-3 pt-2">
-            <div className="h-1.5 flex-1 rounded-full bg-surface-2 overflow-hidden border border-border/50">
-              <div 
-                className="h-full bg-primary transition-all duration-700 ease-out" 
-                style={{ width: `${(riskValue / 5) * 100}%` }} 
-              />
-            </div>
-            <span className="text-[10px] font-black tabular-nums text-muted-foreground"> LVL {Math.ceil(riskValue)}</span>
-          </div>
-        </div>
+       </div>
 
-        {/* Master Playhead */}
-        <div className="flex min-w-[150px] flex-col rounded-lg bg-surface-2 p-2.5 text-right border border-border/40">
-          <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">Master Timeline</div>
-          <div className="text-2xl font-black tabular-nums tracking-tight text-foreground mt-1">
-            {formatClock(s.playhead, { showSeconds: true })}
+       {/* 4. Master Timeline */}
+       <div className="flex items-center gap-4 border-l border-border pl-4 min-w-[140px]">
+          <div className="flex flex-col items-end">
+            <span className="text-[16px] font-black tabular-nums tracking-tight text-foreground leading-none">
+              {formatClock(s.playhead, { showSeconds: true })}
+            </span>
+            <span className={cn(
+              "text-[8px] font-bold uppercase tracking-widest mt-0.5",
+              nextEvent ? "text-primary" : "text-muted-foreground"
+            )}>
+              {timeToEventStr}
+            </span>
           </div>
-          <div className="text-[9px] font-bold text-primary uppercase tracking-widest mt-0.5">
-            {nextEvent ? `T-MINUS ${minutesToEvent}m TO EVENT` : "NO UPCOMING ALERTS"}
-          </div>
-        </div>
-      </div>
+       </div>
     </div>
   );
 }
