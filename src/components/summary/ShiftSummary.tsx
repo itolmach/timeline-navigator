@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { type ScrubberState } from "@/components/scrubber/VideoScrubber";
 import { 
@@ -11,30 +11,55 @@ import {
   eventTypeMeta
 } from "@/lib/timeline-data";
 
-export function ShiftSummary({ s }: { s: ScrubberState }) {
+export function ShiftSummary({ s, showEventParagraph = false }: { s: ScrubberState; showEventParagraph?: boolean }) {
   const [activeTab, setActiveTab] = useState<"All" | "Morning" | "Midday" | "End of Day">("All");
   const [localCheckIns, setLocalCheckIns] = useState<CheckIn[]>(initialCheckIns);
-  const [selectedCheckInId, setSelectedCheckInId] = useState<string>(initialCheckIns[1]?.id || "");
+  const [selectedCheckInId, setSelectedCheckInId] = useState<string | null>(initialCheckIns[1]?.id || null);
+
+  useEffect(() => {
+    (window as any).__addCheckIn = () => {
+      const newId = `c_new_${Date.now()}`;
+      const t = s.playhead;
+      const newCheckIn: CheckIn = {
+        id: newId,
+        t,
+        type: t < 12 * 3600 ? "morning" : t < 16 * 3600 ? "midday" : "evening",
+        title: "Ad-hoc Supervisor Check-in",
+        summary: "Manual checkpoint generated. Operational metrics captured. No immediate anomalies detected.",
+        risk: "Low",
+        keywords: ["manual-check", "supervisor"],
+        metrics: [
+          { label: "Check Time", value: formatClock(t) },
+          { label: "Status", value: "Normal" },
+          { label: "Alerts", value: "0" }
+        ],
+        eventIds: []
+      };
+      setLocalCheckIns(prev => [...prev, newCheckIn].sort((a, b) => a.t - b.t));
+      setSelectedCheckInId(newId);
+    };
+    return () => { delete (window as any).__addCheckIn; };
+  }, [s.playhead]);
 
   const handleTabChange = (tab: "All" | "Morning" | "Midday" | "End of Day") => {
     setActiveTab(tab);
-    // Auto-zoom logic
     const hourRangeMap: Record<string, [number, number]> = {
-      "Morning": [9, 12],
-      "Midday": [12, 15],
-      "End of Day": [15, 18],
+      "Morning": [8.25, 12.5],
+      "Midday": [12.5, 17.5],
+      "End of Day": [17.5, 21],
       "All": [6, 18]
     };
     const [startH, endH] = hourRangeMap[tab];
     s.setVp({ start: startH * 3600, end: endH * 3600 });
     
-    // Select the first check-in of that type if available
     const typeMap: Record<string, string> = { "Morning": "morning", "Midday": "midday", "End of Day": "evening" };
     if (tab !== "All") {
       const first = localCheckIns.find(c => c.type === typeMap[tab]);
       if (first) {
         setSelectedCheckInId(first.id);
         s.setPlayhead(first.t);
+      } else {
+        setSelectedCheckInId(null);
       }
     }
   };
@@ -121,6 +146,9 @@ export function ShiftSummary({ s }: { s: ScrubberState }) {
               onClick={() => {
                 setSelectedCheckInId(c.id);
                 s.setPlayhead(c.t);
+                if (c.type === "morning") s.setVp({ start: 8.25 * 3600, end: 12.5 * 3600 });
+                if (c.type === "midday") s.setVp({ start: 12.5 * 3600, end: 17.5 * 3600 });
+                if (c.type === "evening") s.setVp({ start: 17.5 * 3600, end: 21 * 3600 });
               }}
             />
           ))}
@@ -136,7 +164,13 @@ export function ShiftSummary({ s }: { s: ScrubberState }) {
 
       {/* Right Content: Detail View */}
       <div className="flex-1 overflow-y-auto pr-4 custom-scrollbar">
-        <CheckInDetail checkIn={selectedCheckIn} s={s} />
+        {selectedCheckIn ? (
+          <CheckInDetail checkIn={selectedCheckIn} s={s} showEventParagraph={showEventParagraph} />
+        ) : (
+          <div className="flex h-full items-center justify-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            Select a check-in card to view detailed analytics and sequence summaries
+          </div>
+        )}
       </div>
     </div>
   );
@@ -237,7 +271,7 @@ function EventListItem({ event, s }: { event: SafetyEvent; s: ScrubberState }) {
   );
 }
 
-function CheckInDetail({ checkIn, s }: { checkIn: CheckIn; s: ScrubberState }) {
+function CheckInDetail({ checkIn, s, showEventParagraph }: { checkIn: CheckIn; s: ScrubberState; showEventParagraph?: boolean }) {
   return (
     <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
       <div className="flex items-start justify-between mb-6">
@@ -308,28 +342,38 @@ function CheckInDetail({ checkIn, s }: { checkIn: CheckIn; s: ScrubberState }) {
                 {idx + 1}
               </div>
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-0.5">
-                   <span 
-                    className="rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-white"
-                    style={{ background: `hsl(var(${eventTypeMeta[event.type].cssVar}))` }}
-                   >
-                    {eventTypeMeta[event.type].label}
-                   </span>
-                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                    {formatClock(event.t)}
-                   </span>
-                </div>
-                <div className="text-[13px] font-bold text-foreground">
-                  {event.label}
-                </div>
-              </div>
-              <div className="h-10 w-[80px] rounded-lg bg-surface-3 overflow-hidden border border-border relative">
-                 <img src={`/events/thumb_${event.id}.jpg`} className="w-full h-full object-cover opacity-40" />
-                 <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="h-5 w-5 rounded-full bg-primary/20 backdrop-blur-sm flex items-center justify-center border border-primary/40">
-                       <div className="h-0 w-0 border-t-[4px] border-t-transparent border-l-[6px] border-l-primary border-b-[4px] border-b-transparent ml-1" />
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 mb-0.5">
+                       <span 
+                        className="rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-white"
+                        style={{ background: `hsl(var(${eventTypeMeta[event.type].cssVar}))` }}
+                       >
+                        {eventTypeMeta[event.type].label}
+                       </span>
+                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                        {formatClock(event.t)}
+                       </span>
                     </div>
-                 </div>
+                    <div className="text-[13px] font-bold text-foreground">
+                      {event.label}
+                    </div>
+                  </div>
+                  <div className="h-10 w-[80px] shrink-0 rounded-lg bg-surface-3 overflow-hidden border border-border relative ml-4">
+                     <img src={`/events/thumb_${event.id}.jpg`} className="w-full h-full object-cover opacity-40" />
+                     <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="h-5 w-5 rounded-full bg-primary/20 backdrop-blur-sm flex items-center justify-center border border-primary/40">
+                           <div className="h-0 w-0 border-t-[4px] border-t-transparent border-l-[6px] border-l-primary border-b-[4px] border-b-transparent ml-1" />
+                        </div>
+                     </div>
+                  </div>
+                </div>
+                
+                {showEventParagraph && (
+                  <div className="mt-3 text-[11px] leading-relaxed text-muted-foreground bg-surface-2/50 p-3 rounded-lg border border-border/50">
+                    {generateNarrative(event)}
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -337,4 +381,16 @@ function CheckInDetail({ checkIn, s }: { checkIn: CheckIn; s: ScrubberState }) {
       </div>
     </div>
   );
+}
+
+export const generateNarrative = (event: SafetyEvent) => {
+  const time = formatClock(event.t, { showSeconds: true });
+  switch(event.type) {
+    case 'proximity': return `At ${time}, a proximity breach was detected involving heavy machinery and ground personnel. The system recorded a sustained close-quarters interaction that triggered an automatic severity ${event.severity} alert. The incident lasted for ${event.durationSec} seconds before safe distancing was restored.`;
+    case 'zone': return `At ${time}, an unauthorized entry into a restricted operational zone occurred. The asset crossed the designated geo-fence boundary, generating a severity ${event.severity} geofence violation. The system tracked this incursion for ${event.durationSec} seconds before the asset cleared the area.`;
+    case 'speed': return `At ${time}, a vehicle exceeded the site-specific speed limit, registering a severity ${event.severity} overspeed event. The telemetry data indicates the violation was sustained for ${event.durationSec} seconds before returning to acceptable operational limits.`;
+    case 'misuse': return `At ${time}, an asset misuse anomaly was flagged by the operational monitoring system. The activity matched known improper usage signatures (severity ${event.severity}), persisting for ${event.durationSec} seconds. Immediate review of this specific operational frame is recommended.`;
+    case 'ppe': return `At ${time}, computer vision identified a personal protective equipment (PPE) compliance failure. Personnel were detected without required safety gear, triggering a severity ${event.severity} alert. The non-compliant state was visible in the camera feed for ${event.durationSec} seconds.`;
+    default: return `At ${time}, an operational anomaly was detected. Review the associated video feed to understand the context of this severity ${event.severity} event.`;
+  }
 }

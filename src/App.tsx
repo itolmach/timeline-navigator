@@ -8,6 +8,7 @@ import ExperimentView from "./pages/ExperimentView.tsx";
 import OriginalView from "./pages/OriginalView.tsx";
 import SequenceView from "./pages/SequenceView.tsx";
 import CompactView from "./pages/CompactView.tsx";
+import MapView from "./pages/MapView.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -17,13 +18,14 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter basename="/timeline-navigator/">
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/experiment" element={<ExperimentView />} />
           <Route path="/original" element={<OriginalView />} />
           <Route path="/sequence" element={<SequenceView />} />
           <Route path="/compact" element={<CompactView />} />
+          <Route path="/mapview" element={<MapView />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

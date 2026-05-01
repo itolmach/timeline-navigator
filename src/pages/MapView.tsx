@@ -15,18 +15,19 @@ import {
   type EventType,
 } from "@/lib/timeline-data";
 import { cn } from "@/lib/utils";
-import { ShiftSummary } from "@/components/summary/ShiftSummary";
+import { ShiftSummary, generateNarrative } from "@/components/summary/ShiftSummary";
+import { Map, Video } from "lucide-react";
 
-const OriginalView = () => {
+const MapView = () => {
   const s = useScrubber();
   const [isMinimized, setIsMinimized] = useState(false);
+  const [isMapMode, setIsMapMode] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const observerTarget = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
-        // If the top header is out of view, minimize the video
         setIsMinimized(!entry.isIntersecting);
       },
       { threshold: 0 }
@@ -85,20 +86,83 @@ const OriginalView = () => {
         {/* Large Hero Video Section */}
         <div className={cn(
           "relative transition-all duration-700 ease-in-out py-6",
-          isMinimized ? "h-0 opacity-0 pointer-events-none mb-0 overflow-hidden" : "h-[75vh] mb-8"
+          (isMinimized && !isMapMode) ? "h-0 opacity-0 pointer-events-none mb-0 overflow-hidden" : "h-[75vh] mb-8"
         )}>
-          <VideoStage s={s} toolbar={<PlaybackToolbar s={s} />} />
+          {isMapMode ? (
+            <div className="relative h-full w-full rounded-2xl border border-border bg-black shadow-2xl overflow-hidden group">
+               {/* Map Placeholder */}
+               <div className="absolute inset-0 bg-surface-2 flex items-center justify-center">
+                 <div className="text-center opacity-50">
+                   <Map className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+                   <p className="font-bold uppercase tracking-widest text-muted-foreground">Mapbox Viewport Placeholder</p>
+                 </div>
+               </div>
+
+               {/* Right-hand side PIP Video & Event Details */}
+               <div className="absolute right-6 top-6 bottom-6 w-[450px] flex flex-col pointer-events-auto gap-4">
+                 <div className="flex justify-end">
+                   <button 
+                     onClick={() => setIsMapMode(false)} 
+                     className="flex items-center gap-2 rounded-lg border border-border bg-surface-1/90 px-3 py-1.5 shadow-sm backdrop-blur-md hover:bg-surface-2 transition-colors"
+                   >
+                     <Video className="w-4 h-4 text-foreground" />
+                     <span className="text-[10px] font-bold uppercase tracking-widest text-foreground">Video View</span>
+                   </button>
+                 </div>
+                 
+                 <div className="w-full aspect-video shadow-2xl border border-white/20 rounded-2xl overflow-hidden bg-black flex-shrink-0">
+                   <VideoStage s={s} compact={true} toolbar={null} isPip={true} hideTimeline={true} />
+                 </div>
+
+                 {s.selected && (
+                   <div className="animate-in fade-in slide-in-from-top-2 flex-1 overflow-y-auto custom-scrollbar rounded-2xl border border-border bg-surface-1/90 shadow-2xl backdrop-blur-md p-5 flex flex-col gap-4">
+                     <div>
+                       <div className="flex items-center gap-2 mb-1.5">
+                         <span 
+                           className="rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-white"
+                           style={{ background: `hsl(var(${eventTypeMeta[s.selected.type].cssVar}))` }}
+                         >
+                           {eventTypeMeta[s.selected.type].label}
+                         </span>
+                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                           {formatClock(s.selected.t)}
+                         </span>
+                       </div>
+                       <h3 className="text-sm font-bold text-foreground leading-snug">
+                         {s.selected.label}
+                       </h3>
+                     </div>
+                     <div className="text-[12px] leading-relaxed text-muted-foreground bg-surface-2/50 p-4 rounded-xl border border-border/50">
+                       {generateNarrative(s.selected)}
+                     </div>
+                   </div>
+                 )}
+               </div>
+
+               {/* Timeline Floating Above Map View (outside of PiP) */}
+               <div className="absolute left-6 right-[498px] bottom-6 z-50 pointer-events-auto">
+                 <PlaybackToolbar s={s} />
+                 <div className="mt-3 backdrop-blur-md bg-background/40 overflow-hidden shadow-2xl border rounded-xl border-white/10">
+                   <ScrubberTimeline s={s} />
+                 </div>
+               </div>
+            </div>
+          ) : (
+            <VideoStage s={s} toolbar={<PlaybackToolbar s={s} />} onToggleMap={() => setIsMapMode(true)} />
+          )}
         </div>
 
-        {/* Floating PIP Video (Visible when scrolled down) */}
-        <div className={cn(
-          "fixed bottom-8 right-8 z-[100] w-[450px] aspect-video transition-all duration-500 ease-in-out transform shadow-2xl border border-white/20 rounded-2xl overflow-hidden bg-black",
-          isMinimized 
-            ? "translate-y-0 opacity-100 scale-100" 
-            : "translate-y-20 opacity-0 scale-90 pointer-events-none"
-        )}>
-           <VideoStage s={s} compact={true} toolbar={null} isPip={true} />
-        </div>
+        {/* Floating PIP Video (Visible when scrolled down AND not in map mode) */}
+        {!isMapMode && (
+          <div className={cn(
+            "fixed bottom-8 right-8 z-[100] w-[450px] aspect-video transition-all duration-500 ease-in-out transform shadow-2xl border border-white/20 rounded-2xl overflow-hidden bg-black",
+            isMinimized 
+              ? "translate-y-0 opacity-100 scale-100" 
+              : "translate-y-20 opacity-0 scale-90 pointer-events-none"
+          )}>
+             <VideoStage s={s} compact={true} toolbar={null} isPip={true} />
+          </div>
+        )}
 
 
 
@@ -139,12 +203,16 @@ function VideoStage({
   s, 
   toolbar, 
   compact = false,
-  isPip = false
+  isPip = false,
+  hideTimeline = false,
+  onToggleMap
 }: { 
   s: ScrubberState; 
   toolbar?: React.ReactNode;
   compact?: boolean;
   isPip?: boolean;
+  hideTimeline?: boolean;
+  onToggleMap?: () => void;
 }) {
   const selected = s.selected;
   return (
@@ -179,7 +247,7 @@ function VideoStage({
         isPip && "p-3"
       )}>
         {!isPip && (
-          <div className="absolute inset-x-6 top-6 flex items-center justify-between pointer-events-none">
+          <div className="absolute inset-x-6 top-6 flex items-start justify-between pointer-events-none">
              <div className="flex items-center gap-3">
                <div className="pointer-events-auto flex items-center gap-2.5 rounded-lg border border-border bg-surface-1/90 px-3 py-1.5 shadow-sm backdrop-blur-md">
                  <span className="h-2 w-2 animate-pulse rounded-full bg-destructive" />
@@ -188,6 +256,16 @@ function VideoStage({
                  </span>
                </div>
              </div>
+
+             {onToggleMap && (
+               <button 
+                 onClick={onToggleMap} 
+                 className="pointer-events-auto flex items-center gap-2 rounded-lg border border-border bg-surface-1/90 px-3 py-1.5 shadow-sm backdrop-blur-md hover:bg-surface-2 transition-colors"
+               >
+                 <Map className="w-4 h-4 text-foreground" />
+                 <span className="text-[10px] font-bold uppercase tracking-widest text-foreground">Map View</span>
+               </button>
+             )}
           </div>
         )}
 
@@ -204,14 +282,16 @@ function VideoStage({
         {!isPip && toolbar && <div className="pointer-events-auto">{toolbar}</div>}
 
         {/* Scrubber Timeline */}
-        <div className="pointer-events-auto">
-           <div className={cn("backdrop-blur-md bg-background/40 overflow-hidden shadow-2xl border", isPip ? "rounded-lg border-white/5" : "rounded-xl border-white/10")}>
-             <ScrubberTimeline s={s} compact={isPip ? true : compact} />
-           </div>
-        </div>
+        {!hideTimeline && (
+          <div className="pointer-events-auto">
+             <div className={cn("backdrop-blur-md bg-background/40 overflow-hidden shadow-2xl border", isPip ? "rounded-lg border-white/5" : "rounded-xl border-white/10")}>
+               <ScrubberTimeline s={s} compact={isPip ? true : compact} />
+             </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-export default OriginalView;
+export default MapView;

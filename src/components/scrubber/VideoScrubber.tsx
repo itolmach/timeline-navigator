@@ -876,6 +876,7 @@ function CompactTrack({
 // ============================================================================
 export function ScrubberTimeline({ s, compact = false }: { s: ScrubberState; compact?: boolean }) {
   const stackRef = useRef<HTMLDivElement>(null);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     const el = stackRef.current;
@@ -937,8 +938,20 @@ export function ScrubberTimeline({ s, compact = false }: { s: ScrubberState; com
   const playheadLeft = tToPct(s.playhead, s.vp);
 
   return (
-    <div className={cn("panel rounded-xl border border-border-strong", compact ? "p-2" : "p-4")}>
-      <div ref={stackRef} onClick={handleTimelineClick} className={cn("relative cursor-crosshair", compact ? "" : "space-y-1")}>
+    <div className={cn("panel rounded-xl border border-border-strong relative transition-all duration-300", compact ? "p-2" : "p-4", isCollapsed ? (compact ? "pb-0 pt-6" : "pb-0 pt-8") : "")}>
+      <button 
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="absolute top-1 right-2 z-50 p-1 text-muted-foreground hover:text-foreground rounded-md hover:bg-surface-2 transition-colors flex items-center gap-2"
+        title={isCollapsed ? "Expand Timeline" : "Collapse Timeline"}
+      >
+        <span className="text-[9px] font-bold uppercase tracking-widest">{isCollapsed ? "Expand" : "Collapse"}</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("w-3.5 h-3.5 transition-transform duration-200", isCollapsed ? "rotate-180" : "")}>
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </button>
+
+      <div className={cn("transition-all duration-300 ease-in-out origin-top", isCollapsed ? "h-0 opacity-0 overflow-hidden pointer-events-none" : "opacity-100")}>
+        <div ref={stackRef} onClick={handleTimelineClick} className={cn("relative cursor-crosshair", compact ? "" : "space-y-1")}>
         {compact ? (
           <CompactTrack vp={s.vp} onSelect={s.focusEvent} selectedId={s.selected?.id} />
         ) : (
@@ -978,6 +991,7 @@ export function ScrubberTimeline({ s, compact = false }: { s: ScrubberState; com
           Scroll = zoom · Shift+Scroll / Horiz. Scroll = pan · Drag minimap window · Click to seek
         </div>
       )}
+      </div>
     </div>
   );
 }

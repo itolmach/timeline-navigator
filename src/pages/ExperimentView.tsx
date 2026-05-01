@@ -28,17 +28,15 @@ const ExperimentView = () => {
 
   const handleTabChange = (tab: "All" | "Morning" | "Midday" | "End of Day") => {
     setActiveTab(tab);
-    // Auto-zoom logic
     const hourRangeMap: Record<string, [number, number]> = {
-      "Morning": [9, 12],
-      "Midday": [12, 15],
-      "End of Day": [15, 18],
+      "Morning": [8.25, 12.5],
+      "Midday": [12.5, 17.5],
+      "End of Day": [17.5, 21],
       "All": [6, 18]
     };
     const [startH, endH] = hourRangeMap[tab];
     s.setVp({ start: startH * 3600, end: endH * 3600 });
     
-    // Select the first check-in of that type if available
     const typeMap: Record<string, string> = { "Morning": "morning", "Midday": "midday", "End of Day": "evening" };
     if (tab !== "All") {
       const first = localCheckIns.find(c => c.type === typeMap[tab]);
@@ -149,6 +147,9 @@ const ExperimentView = () => {
                 onClick={() => {
                   setSelectedCheckInId(c.id);
                   s.setPlayhead(c.t);
+                  if (c.type === "morning") s.setVp({ start: 8.25 * 3600, end: 12.5 * 3600 });
+                  if (c.type === "midday") s.setVp({ start: 12.5 * 3600, end: 17.5 * 3600 });
+                  if (c.type === "evening") s.setVp({ start: 17.5 * 3600, end: 21 * 3600 });
                 }}
               />
             ))}
